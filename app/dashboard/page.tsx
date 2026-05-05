@@ -108,11 +108,23 @@ export default function Dashboard() {
   // Load data
   useEffect(()=>{
     async function load() {
-      const { data: { user } } = await sb.auth.getUser()
-      if (!user) { router.push('/login'); return }
+      // getSession() lit localStorage sans appel réseau - plus fiable que getUser()
+      const { data: { session } } = await sb.auth.getSession()
+      if (!session?.user) { router.push('/login'); return }
 
-      const { data: salonData } = await sb.from('salons').select('*').eq('email', user.email).single()
-      if (!salonData) { router.push('/login'); return }
+      const userEmail = session.user.email
+      const { data: salonData, error: salonErr } = await sb.from('salons').select('*').eq('email', userEmail).single()
+      
+      if (salonErr || !salonData) {
+        console.error('Salon not found for email:', userEmail, salonErr)
+        // Attendre 1s et réessayer une fois (session parfois en cours d'initialisation)
+        await new Promise(r => setTimeout(r, 1000))
+        const { data: retry } = await sb.from('salons').select('*').eq('email', userEmail).single()
+        if (!retry) { router.push('/login'); return }
+        setSalon(retry)
+      } else {
+        setSalon(salonData)
+      }
       setSalon(salonData)
 
       const [emps, svcs, cls, appts] = await Promise.all([
