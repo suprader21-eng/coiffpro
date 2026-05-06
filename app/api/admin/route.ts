@@ -75,6 +75,15 @@ export async function POST(req: NextRequest) {
       if (error) return NextResponse.json({ error: error.message }, { status: 400 })
       return NextResponse.json({ ok: true })
     }
+    case 'get_support_messages': {
+      const { data: msgs } = await admin.from('support_messages').select('*').eq('salon_id', id).order('created_at', { ascending: true })
+      return NextResponse.json({ messages: msgs || [] })
+    }
+    case 'send_support_reply': {
+      const { data: msg, error } = await admin.from('support_messages').insert({ salon_id: id, from_admin: true, message: data.message }).select().single()
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ message: msg })
+    }
     default:
       return NextResponse.json({ error: 'Action inconnue' }, { status: 400 })
   }

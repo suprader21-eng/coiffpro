@@ -59,6 +59,7 @@ const NAV_GROUPS = [
     {id:'services',label:'Services & Tarifs',icon:'M4 6h16M4 10h16M4 14h16M4 18h16'},
     {id:'stock',label:'Stock produits',icon:'M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z M12 12v.01'},
     {id:'paiements',label:'Paiements SumUp',icon:'M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0-2-2z M1 10h22'},
+    {id:'support',label:'Support CoiffPro',icon:'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'},
     {id:'avis',label:'Avis Google',icon:'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'},
     {id:'rappels',label:'Rappels auto',icon:'M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z'},
   ]},
@@ -72,6 +73,7 @@ const PAGE_TITLES:Record<string,string> = {
   dashboard:'Tableau de bord',agenda:'Agenda',clients:'Clients & CRM',fidelite:'Fidélité & Remises',
   marketing:'Campagnes SMS',equipe:'Équipe',services:'Services & Tarifs',stock:'Stock produits',
   paiements:'Paiements SumUp',avis:'Avis Google',rappels:'Rappels automatiques',
+  support:'Support CoiffPro',
   'ma-page':'Ma page client',parametres:'Paramètres',
 }
 
@@ -99,6 +101,8 @@ export default function Dashboard() {
   const [clients, setClients] = useState<Client[]>([])
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [products, setProducts] = useState<Product[]>([])
+  const [payModal, setPayModal] = useState<Appointment|null>(null)
+  const [supportMsgs, setSupportMsgs] = useState<{id:string;from_admin:boolean;message:string;created_at:string;read_at:string|null}[]>([])
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState('')
   const [theme, setTheme] = useState('light')
@@ -151,6 +155,9 @@ export default function Dashboard() {
       setClients(cls.data || [])
       setAppointments(appts.data || [])
       setProducts(prods.data || [])
+      // Load support messages
+      fetch('/api/support', { headers: { Authorization: `Bearer ${session.access_token}` } })
+        .then(r => r.json()).then(j => setSupportMsgs(j.messages || [])).catch(()=>{})
       setLoading(false)
     }
     load()
@@ -297,7 +304,10 @@ export default function Dashboard() {
           <div style={{fontSize:10,color:'var(--t3)'}}>{a.service?.name||'Prestation'} · {a.employee?.name||''}</div>
         </div>
         <span style={{fontSize:12,fontWeight:700}}>{fmt(a.final_price_cents||a.price_cents)}</span>
-        {a.paid?<span className="badge badge-ok">Payé ✓</span>:<Btn style={{fontSize:9,padding:'3px 8px',background:'var(--green)'}} onClick={()=>addToast('💰 En cours…')}>💰 Encaisser</Btn>}
+        {a.paid
+          ? <span className="badge badge-ok">Payé ✓ {a.payment_method?`(${a.payment_method})`:''}</span>
+          : <Btn style={{fontSize:9,padding:'3px 8px',background:'var(--green)'}} onClick={()=>setPayModal(a)}>💰 Encaisser</Btn>
+        }
         <Bge status={a.status} />
       </div>
     )
@@ -908,28 +918,230 @@ export default function Dashboard() {
   }
 
   function PagePaiements() {
-    return <div className="g2">
+    const paidThisMonth = appointments.filter(a=>a.paid&&new Date(a.scheduled_at).getMonth()===new Date().getMonth())
+    const caMonth = paidThisMonth.reduce((s,a)=>s+(a.final_price_cents||a.price_cents),0)
+    const byCash  = paidThisMonth.filter(a=>a.payment_method==='cash').reduce((s,a)=>s+(a.final_price_cents||a.price_cents),0)
+    const byCard  = paidThisMonth.filter(a=>a.payment_method==='card').reduce((s,a)=>s+(a.final_price_cents||a.price_cents),0)
+    const bySumup = paidThisMonth.filter(a=>a.payment_method==='sumup').reduce((s,a)=>s+(a.final_price_cents||a.price_cents),0)
+
+    return <div style={{display:'flex',flexDirection:'column',gap:12}}>
+      <div className="g2">
+        <Card>
+          <CardHd title="CA encaissé ce mois" />
+          <div style={{fontFamily:'Georgia,serif',fontSize:36,fontWeight:700,marginBottom:4}}>{fmt(caMonth)}</div>
+          <div style={{fontSize:11,color:'var(--t3)'}}>{paidThisMonth.length} paiements</div>
+          <div style={{marginTop:12,display:'flex',flexDirection:'column',gap:6}}>
+            {[['💵 Espèces',byCash],['💳 Carte',byCard],['🔵 SumUp',bySumup]].map(([l,v])=>(
+              <div key={l as string} style={{display:'flex',justifyContent:'space-between',fontSize:12}}>
+                <span style={{color:'var(--t2)'}}>{l}</span>
+                <span style={{fontWeight:600}}>{fmt(v as number)}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+        <Card>
+          <CardHd title="Connexion SumUp" />
+          {salon?.sumup_merchant_code
+            ? <div style={{background:'#e8f7ee',border:'1px solid #b8dfc6',borderRadius:10,padding:14}}>
+                <div style={{fontSize:13,fontWeight:600,color:'var(--green)',marginBottom:4}}>✅ SumUp connecté</div>
+                <div style={{fontSize:11,color:'var(--t3)',marginBottom:10}}>Merchant code : {salon.sumup_merchant_code}</div>
+                <div style={{fontSize:12,color:'var(--t2)'}}>Vous pouvez maintenant encaisser via SumUp depuis l'agenda (bouton 💰 Encaisser).</div>
+              </div>
+            : <>
+                <div style={{fontSize:12,color:'var(--t2)',marginBottom:12,lineHeight:1.6}}>
+                  Connectez votre compte SumUp pour encaisser par carte directement depuis l'agenda.<br/>
+                  <span style={{fontSize:11,color:'var(--t3)'}}>Vous serez redirigé vers SumUp pour autoriser la connexion.</span>
+                </div>
+                <a href={`/api/sumup/connect?salonId=${salon?.id}`}
+                  style={{display:'block',background:'#1a4fa0',color:'#fff',borderRadius:8,padding:'11px',textAlign:'center' as const,fontSize:13,fontWeight:600,textDecoration:'none'}}>
+                  🔵 Connecter mon compte SumUp →
+                </a>
+                <div style={{marginTop:10,fontSize:11,color:'var(--t3)'}}>
+                  Sans SumUp vous pouvez quand même encaisser en espèces ou carte (sans terminal connecté).
+                </div>
+              </>
+          }
+        </Card>
+      </div>
+
       <Card>
-        <CardHd title="Connexion SumUp" />
-        {salon?.sumup_merchant_code
-          ? <div style={{background:'#e8f7ee',border:'1px solid #b8dfc6',borderRadius:10,padding:14}}>
-              <div style={{fontSize:13,fontWeight:600,color:'var(--green)',marginBottom:4}}>✅ SumUp connecté</div>
-              <div style={{fontSize:11,color:'var(--t3)'}}>Merchant: {salon.sumup_merchant_code}</div>
+        <CardHd title="Derniers paiements" />
+        {appointments.filter(a=>a.paid).slice(0,10).map(a=>(
+          <div key={a.id} style={{display:'flex',alignItems:'center',gap:8,padding:'9px 0',borderBottom:'1px solid var(--b1)'}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:500}}>{a.client?.name||'Client'}</div>
+              <div style={{fontSize:10,color:'var(--t3)'}}>{a.service?.name} · {new Date(a.scheduled_at).toLocaleDateString('fr-FR')}</div>
             </div>
-          : <div style={{background:'#eff6ff',border:'1px solid #bfdbfe',borderRadius:10,padding:14}}>
-              <div style={{fontSize:13,fontWeight:600,marginBottom:8}}>Connecter votre compte SumUp</div>
-              <a href={`/api/sumup/connect?salonId=${salon?.id}`} style={{display:'block',background:'#1a4fa0',color:'#fff',borderRadius:8,padding:'10px',textAlign:'center' as const,fontSize:13,fontWeight:600,textDecoration:'none'}}>🔵 Connecter →</a>
-            </div>
-        }
-      </Card>
-      <Card>
-        <CardHd title="CA ce mois" />
-        <div style={{fontFamily:'Georgia,serif',fontSize:36,fontWeight:700,marginBottom:4}}>
-          {fmt(appointments.filter(a=>a.paid&&new Date(a.scheduled_at).getMonth()===new Date().getMonth()).reduce((s,a)=>s+a.price_cents,0))}
-        </div>
-        <div style={{fontSize:12,color:'var(--t3)'}}>Encaissé ce mois</div>
+            <span style={{fontSize:12,fontWeight:700}}>{fmt(a.final_price_cents||a.price_cents)}</span>
+            <span style={{fontSize:10,padding:'2px 7px',borderRadius:10,background:'var(--s1)',border:'1px solid var(--b1)',color:'var(--t2)'}}>
+              {a.payment_method==='cash'?'💵':a.payment_method==='card'?'💳':'🔵'} {a.payment_method||'—'}
+            </span>
+          </div>
+        ))}
+        {appointments.filter(a=>a.paid).length===0&&<div style={{textAlign:'center',padding:'20px',color:'var(--t3)',fontSize:13}}>Aucun paiement enregistré</div>}
       </Card>
     </div>
+  }
+
+  /* ── MODAL PAIEMENT ── */
+  function PayModal() {
+    const a = payModal!
+    const [method, setMethod] = useState<'cash'|'card'|'sumup'>('cash')
+    const [discType, setDiscType] = useState<''|'percent'|'fixed'>('')
+    const [discVal, setDiscVal] = useState(0)
+    const [saving, setSaving] = useState(false)
+    const base = a.price_cents
+    const finalPrice = discType==='percent'
+      ? Math.round(base*(1-discVal/100))
+      : discType==='fixed'
+      ? Math.max(0, base - discVal*100)
+      : base
+    const hasSumUp = !!(salon?.sumup_merchant_code && salon?.sumup_access_token)
+
+    const pay = async () => {
+      setSaving(true)
+      try {
+        const res = await fetch('/api/payment', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({
+            appointmentId: a.id,
+            salonId: salon!.id,
+            method,
+            discountType: discType||null,
+            discountValue: discType==='percent' ? discVal : discVal*100,
+          })
+        })
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error||'Erreur')
+        if (method==='sumup' && json.checkoutUrl) {
+          window.open(json.checkoutUrl,'_blank')
+          addToast('🔗 Page SumUp ouverte dans un nouvel onglet')
+        } else {
+          setAppointments(prev=>prev.map(x=>x.id===a.id?{...x,paid:true,payment_method:method,final_price_cents:finalPrice}:x))
+          addToast('✅ Paiement enregistré !')
+        }
+        setPayModal(null)
+      } catch(e:any) { addToast('❌ '+e.message) }
+      setSaving(false)
+    }
+
+    return <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)setPayModal(null)}}>
+      <div className="modal">
+        <div className="modal-ttl">💰 Encaisser — {a.client?.name||'Client'}</div>
+        <div style={{fontSize:11,color:'var(--t3)',marginBottom:14}}>{a.service?.name} · {new Date(a.scheduled_at).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})}</div>
+
+        <div style={{display:'flex',justifyContent:'space-between',padding:'8px 12px',background:'var(--s1)',borderRadius:8,marginBottom:14}}>
+          <span style={{fontSize:13,color:'var(--t2)'}}>Prix de base</span>
+          <span style={{fontSize:14,fontWeight:600}}>{fmt(base)}</span>
+        </div>
+
+        <FRow label="Remise (optionnel)">
+          <div style={{display:'flex',gap:8}}>
+            <select className="input" value={discType} onChange={e=>setDiscType(e.target.value as any)} style={{flex:1}}>
+              <option value="">Aucune remise</option>
+              <option value="percent">Pourcentage (%)</option>
+              <option value="fixed">Montant fixe (€)</option>
+            </select>
+            {discType&&<Inp type="number" placeholder={discType==='percent'?'10':'5'} value={String(discVal||'')} onChange={v=>setDiscVal(Number(v)||0)} style={{width:80}} />}
+          </div>
+        </FRow>
+
+        {discType&&discVal>0&&<div style={{display:'flex',justifyContent:'space-between',padding:'6px 12px',background:'#fff5f5',borderRadius:8,marginBottom:10,fontSize:12}}>
+          <span style={{color:'var(--red)'}}>Remise appliquée</span>
+          <span style={{color:'var(--red)',fontWeight:600}}>-{discType==='percent'?`${discVal}%`:fmt(discVal*100)}</span>
+        </div>}
+
+        <div style={{display:'flex',justifyContent:'space-between',padding:'12px 14px',background:finalPrice<base?'#e8f7ee':'var(--s1)',borderRadius:10,marginBottom:16,border:`1px solid ${finalPrice<base?'#b8dfc6':'var(--b1)'}`}}>
+          <span style={{fontSize:15,fontWeight:600}}>Total à encaisser</span>
+          <span style={{fontSize:20,fontWeight:700,color:'var(--green)'}}>{fmt(finalPrice)}</span>
+        </div>
+
+        <FRow label="Mode de paiement">
+          <div style={{display:'flex',gap:8}}>
+            {(['cash','card','sumup'] as const).map(m=>(
+              <button key={m} onClick={()=>setMethod(m)} style={{flex:1,padding:'9px 4px',borderRadius:8,border:`2px solid ${method===m?'var(--t1)':'var(--b1)'}`,background:method===m?'var(--t1)':'var(--bg)',color:method===m?'var(--bg)':'var(--t2)',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'inherit',transition:'all .12s'}}>
+                {m==='cash'?'💵 Espèces':m==='card'?'💳 Carte':'🔵 SumUp'}
+              </button>
+            ))}
+          </div>
+        </FRow>
+
+        {method==='sumup'&&!hasSumUp&&<div style={{marginTop:8,padding:'8px 12px',background:'#fdf6e6',border:'1px solid #eed898',borderRadius:8,fontSize:12,color:'#92400e'}}>
+          ⚠ SumUp non connecté. <a href={`/api/sumup/connect?salonId=${salon?.id}`} style={{color:'#92400e',fontWeight:600}}>Connecter mon compte →</a>
+        </div>}
+
+        <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:14}}>
+          <Btn ghost onClick={()=>setPayModal(null)}>Annuler</Btn>
+          <Btn onClick={pay} disabled={saving||(method==='sumup'&&!hasSumUp)}>
+            {saving?'Traitement…':`Encaisser ${fmt(finalPrice)}`}
+          </Btn>
+        </div>
+      </div>
+    </div>
+  }
+
+  /* ── SUPPORT CHAT ── */
+  function PageSupport() {
+    const [msg, setMsg] = useState('')
+    const [sending, setSending] = useState(false)
+    const unread = supportMsgs.filter(m=>m.from_admin&&!m['read_at']).length
+
+    const send = async () => {
+      if (!msg.trim()) return
+      setSending(true)
+      try {
+        const res = await fetch('/api/support', {
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':`Bearer ${tokenRef.current}`},
+          body: JSON.stringify({ message: msg.trim() })
+        })
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error)
+        setSupportMsgs(prev=>[...prev, json.message])
+        setMsg('')
+        addToast('✅ Message envoyé à CoiffPro')
+      } catch(e:any) { addToast('❌ '+e.message) }
+      setSending(false)
+    }
+
+    return <>
+      <Card style={{marginBottom:12,background:'#ede9fe',border:'1px solid #c4b5fd'}}>
+        <div style={{fontSize:13,fontWeight:600,color:'#7c3aed',marginBottom:4}}>💬 Support CoiffPro</div>
+        <div style={{fontSize:12,color:'#5b21b6'}}>Posez vos questions ici — nous répondons généralement dans l'heure.</div>
+      </Card>
+
+      <Card>
+        <div style={{minHeight:320,maxHeight:420,overflowY:'auto',display:'flex',flexDirection:'column',gap:8,marginBottom:14,padding:'4px 0'}}>
+          {supportMsgs.length===0
+            ? <div style={{textAlign:'center',padding:'40px 0',color:'var(--t3)',fontSize:13}}>
+                <div style={{fontSize:32,marginBottom:8}}>💬</div>
+                Aucun message pour l'instant.<br/>Posez votre première question ci-dessous.
+              </div>
+            : supportMsgs.map(m=>(
+              <div key={m.id} style={{display:'flex',flexDirection:'column',alignItems:m.from_admin?'flex-start':'flex-end'}}>
+                <div style={{maxWidth:'80%',padding:'9px 13px',borderRadius:m.from_admin?'4px 14px 14px 14px':'14px 4px 14px 14px',background:m.from_admin?'var(--s1)':'var(--t1)',color:m.from_admin?'var(--t1)':'var(--bg)',fontSize:13,lineHeight:1.5}}>
+                  {m.message}
+                </div>
+                <div style={{fontSize:10,color:'var(--t3)',marginTop:3,padding:'0 4px'}}>
+                  {m.from_admin?'CoiffPro':'Vous'} · {new Date(m.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
+                </div>
+              </div>
+            ))
+          }
+        </div>
+        <div style={{display:'flex',gap:8,borderTop:'1px solid var(--b1)',paddingTop:12}}>
+          <textarea className="input" value={msg} onChange={e=>setMsg(e.target.value)}
+            placeholder="Votre message…" rows={2}
+            style={{flex:1,resize:'none',borderRadius:8,fontFamily:'inherit',fontSize:13}}
+            onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}}} />
+          <Btn onClick={send} disabled={sending||!msg.trim()} style={{alignSelf:'flex-end',padding:'9px 16px'}}>
+            {sending?'…':'Envoyer'}
+          </Btn>
+        </div>
+        <div style={{fontSize:10,color:'var(--t3)',marginTop:6}}>Entrée pour envoyer · Maj+Entrée pour sauter une ligne</div>
+      </Card>
+    </>
   }
 
   const renderPage = () => {
@@ -947,6 +1159,7 @@ export default function Dashboard() {
       case 'rappels':    return <PageRappels />
       case 'ma-page':    return <PageMaPage />
       case 'parametres': return <PageParametres />
+      case 'support':    return <PageSupport />
       default: return null
     }
   }
@@ -1040,6 +1253,7 @@ export default function Dashboard() {
                   </svg>
                   <span style={{flex:1}}>{it.label}</span>
                   {it.id==='stock'&&lowStock.length>0&&<span style={{fontSize:9,background:'var(--red)',color:'#fff',borderRadius:8,padding:'1px 5px',fontWeight:700}}>{lowStock.length}</span>}
+                  {it.id==='support'&&supportMsgs.filter(m=>m.from_admin&&!m.read_at).length>0&&<span style={{fontSize:9,background:'var(--purple)',color:'#fff',borderRadius:8,padding:'1px 5px',fontWeight:700}}>{supportMsgs.filter(m=>m.from_admin&&!m.read_at).length}</span>}
                 </div>
               ))}
             </div>
@@ -1073,6 +1287,7 @@ export default function Dashboard() {
       </nav>
 
       {toast&&<div style={{position:'fixed',bottom:80,right:16,background:'var(--t1)',color:'#fff',borderRadius:10,padding:'10px 14px',fontSize:12,zIndex:999,maxWidth:300,lineHeight:1.5}}>{toast}</div>}
+      {payModal&&<PayModal />}
     </div>
   )
 }

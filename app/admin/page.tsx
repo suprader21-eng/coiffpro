@@ -101,6 +101,7 @@ export default function AdminPage() {
           {[
             { id: 'overview', label: "Vue d'ensemble" },
             { id: 'salons', label: 'Salons' },
+            { id: 'support', label: 'Support' },
             { id: 'messages', label: 'Messages' },
             { id: 'domaines', label: 'Domaines' },
           ].map(p => (
@@ -229,6 +230,11 @@ export default function AdminPage() {
             </>
           )}
         </>}
+
+        {/* ── SUPPORT ── */}
+        {page === 'support' && (
+          <AdminSupportPage salons={salons} call={call} addToast={addToast} />
+        )}
 
         {/* ── MESSAGES ── */}
         {page === 'messages' && (
@@ -460,6 +466,96 @@ function MessagesPage({ salons, call, addToast, onUpdate }: {
       ) : (
         <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t3)', fontSize: 13 }}>
           ← Sélectionnez un salon pour lui envoyer un message
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── ADMIN SUPPORT PAGE ── */
+type SupportMsg = { id: string; salon_id: string; from_admin: boolean; message: string; read_at: string | null; created_at: string }
+
+function AdminSupportPage({ salons, call, addToast }: {
+  salons: Salon[]
+  call: (action: string, id: string, data: Record<string, string>) => Promise<any>
+  addToast: (m: string) => void
+}) {
+  const [sel, setSel] = useState<Salon | null>(null)
+  const [msgs, setMsgs] = useState<SupportMsg[]>([])
+  const [reply, setReply] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [sending, setSending] = useState(false)
+
+  const loadMsgs = async (salon: Salon) => {
+    setSel(salon); setLoading(true)
+    try {
+      const json = await call('get_support_messages', salon.id, {})
+      setMsgs(json.messages || [])
+    } catch { setMsgs([]) }
+    setLoading(false)
+  }
+
+  const send = async () => {
+    if (!sel || !reply.trim()) return
+    setSending(true)
+    try {
+      const json = await call('send_support_reply', sel.id, { message: reply.trim() })
+      setMsgs(prev => [...prev, json.message])
+      setReply('')
+      addToast(`✅ Réponse envoyée à ${sel.name}`)
+    } catch (e: any) { addToast('❌ ' + e.message) }
+    setSending(false)
+  }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 12 }}>
+      <div className="card" style={{ padding: '10px 0', height: 'fit-content' }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--t2)', textTransform: 'uppercase', letterSpacing: '.07em', padding: '0 14px 10px' }}>Salons</div>
+        {salons.map(s => (
+          <div key={s.id} onClick={() => loadMsgs(s)}
+            style={{ padding: '10px 14px', cursor: 'pointer', background: sel?.id === s.id ? 'var(--s1)' : 'transparent', borderLeft: sel?.id === s.id ? '3px solid var(--purple)' : '3px solid transparent' }}>
+            <div style={{ fontSize: 12, fontWeight: 500 }}>{s.name}</div>
+            <div style={{ fontSize: 10, color: 'var(--t3)' }}>{s.owner_name}</div>
+          </div>
+        ))}
+      </div>
+
+      {sel ? (
+        <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid var(--b1)' }}>
+            {sel.name} — {sel.email}
+          </div>
+          {loading
+            ? <div style={{ textAlign: 'center', padding: 30, color: 'var(--t3)', fontSize: 12 }}>Chargement…</div>
+            : <div style={{ flex: 1, minHeight: 300, maxHeight: 420, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+                {msgs.length === 0
+                  ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--t3)', fontSize: 13 }}>Aucun message de ce salon</div>
+                  : msgs.map(m => (
+                    <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: m.from_admin ? 'flex-end' : 'flex-start' }}>
+                      <div style={{ maxWidth: '80%', padding: '9px 13px', borderRadius: m.from_admin ? '14px 4px 14px 14px' : '4px 14px 14px 14px', background: m.from_admin ? 'var(--purple)' : 'var(--s1)', color: m.from_admin ? '#fff' : 'var(--t1)', fontSize: 13, lineHeight: 1.5 }}>
+                        {m.message}
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 3, padding: '0 4px' }}>
+                        {m.from_admin ? 'CoiffPro (admin)' : sel.name} · {new Date(m.created_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        {!m.from_admin && !m.read_at && <span style={{ marginLeft: 6, color: 'var(--purple)', fontWeight: 600 }}>● non lu</span>}
+                      </div>
+                    </div>
+                  ))
+                }
+              </div>
+          }
+          <div style={{ display: 'flex', gap: 8, borderTop: '1px solid var(--b1)', paddingTop: 12 }}>
+            <textarea className="textarea" value={reply} onChange={e => setReply(e.target.value)}
+              placeholder="Répondre au salon…" rows={2} style={{ flex: 1, resize: 'none', fontFamily: 'inherit', fontSize: 13, minHeight: 0 }}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }} />
+            <button className="btn-purple" onClick={send} disabled={sending || !reply.trim()} style={{ alignSelf: 'flex-end' }}>
+              {sending ? '…' : 'Répondre'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t3)', fontSize: 13, minHeight: 200 }}>
+          ← Sélectionnez un salon pour voir ses messages
         </div>
       )}
     </div>
