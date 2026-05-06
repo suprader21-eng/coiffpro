@@ -143,7 +143,7 @@ export default function Dashboard() {
         sb.from('services').select('*').eq('salon_id', salonData!.id).order('sort_order'),
         sb.from('clients').select('*').eq('salon_id', salonData!.id).order('created_at',{ascending:false}),
         sb.from('appointments').select('*, client:clients(name,phone), service:services(name,price_cents), employee:employees(name,color)')
-          .eq('salon_id', salonData!.id).order('scheduled_at',{ascending:false}).limit(100),
+          .eq('salon_id', salonData!.id).order('scheduled_at',{ascending:true}).limit(200),
         sb.from('products').select('*').eq('salon_id', salonData!.id).order('created_at',{ascending:false}).then(r=>r),
       ])
       setEmployees(emps.data || [])
@@ -261,33 +261,62 @@ export default function Dashboard() {
       setSaving(false)
     }
 
+    const now = new Date()
+    const todayStr = now.toDateString()
+    // RDV à venir (aujourd'hui + futur), triés chronologiquement, non annulés
+    const upcoming = appointments
+      .filter(a => new Date(a.scheduled_at) >= new Date(now.getFullYear(), now.getMonth(), now.getDate()) && a.status !== 'cancelled')
+      .sort((a,b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
+
+    // Grouper par jour
+    const byDay: Record<string, Appointment[]> = {}
+    upcoming.forEach(a => {
+      const key = new Date(a.scheduled_at).toDateString()
+      if (!byDay[key]) byDay[key] = []
+      byDay[key].push(a)
+    })
+    const dayKeys = Object.keys(byDay)
+
+    const dayLabel = (key: string) => {
+      const d = new Date(key)
+      if (key === todayStr) return `Aujourd'hui — ${d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}`
+      const tomorrow = new Date(now); tomorrow.setDate(now.getDate()+1)
+      if (key === tomorrow.toDateString()) return `Demain — ${d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}`
+      return d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})
+    }
+
+    const ApptRow = ({a}:{a:Appointment}) => (
+      <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 0',borderBottom:'1px solid var(--b1)'}}>
+        <span style={{fontSize:11,color:'var(--t2)',width:38,fontWeight:500,flexShrink:0}}>{new Date(a.scheduled_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</span>
+        <div style={{width:28,height:28,borderRadius:'50%',background:'#c8a96e22',color:'#c8a96e',display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,fontWeight:700,flexShrink:0}}>{ini(a.client?.name||'?')}</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:13,fontWeight:500}}>{a.client?.name||'Client'}</div>
+          <div style={{fontSize:10,color:'var(--t3)'}}>{a.service?.name||'Prestation'} · {a.employee?.name||''}</div>
+        </div>
+        <span style={{fontSize:12,fontWeight:700}}>{fmt(a.final_price_cents||a.price_cents)}</span>
+        {a.paid?<span className="badge badge-ok">Payé ✓</span>:<Btn style={{fontSize:9,padding:'3px 8px',background:'var(--green)'}} onClick={()=>addToast('💰 En cours…')}>💰 Encaisser</Btn>}
+        <Bge status={a.status} />
+      </div>
+    )
+
     return <>
       <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginBottom:12}}>
         <Btn ghost onClick={()=>window.open(`/book/${salon?.slug}`,'_blank')}>Voir ma page ↗</Btn>
         <Btn onClick={()=>setModal(true)}>+ Nouveau RDV</Btn>
       </div>
-      <Card>
-        <CardHd title={`Aujourd'hui — ${new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}`} />
-        {todayAppts.length===0
-          ? <div style={{textAlign:'center',padding:'32px 0',color:'var(--t3)',fontSize:14}}>
-              <div style={{fontSize:32,marginBottom:8}}>📅</div>Aucun RDV aujourd'hui.
-              <br/><span onClick={()=>setModal(true)} style={{color:'var(--t1)',fontWeight:600,cursor:'pointer',textDecoration:'underline'}}>Ajouter manuellement</span>
-            </div>
-          : todayAppts.map(a=>(
-            <div key={a.id} style={{display:'flex',alignItems:'center',gap:8,padding:'10px 0',borderBottom:'1px solid var(--b1)'}}>
-              <span style={{fontSize:11,color:'var(--t2)',width:38,fontWeight:500,flexShrink:0}}>{new Date(a.scheduled_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</span>
-              <div style={{width:28,height:28,borderRadius:'50%',background:'#c8a96e22',color:'#c8a96e',display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,fontWeight:700,flexShrink:0}}>{ini(a.client?.name||'?')}</div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:500}}>{a.client?.name||'Client'}</div>
-                <div style={{fontSize:10,color:'var(--t3)'}}>{a.service?.name||'Prestation'} · {a.employee?.name||''}</div>
-              </div>
-              <span style={{fontSize:12,fontWeight:700}}>{fmt(a.final_price_cents||a.price_cents)}</span>
-              {a.paid?<span className="badge badge-ok">Payé ✓</span>:<Btn style={{fontSize:9,padding:'3px 8px',background:'var(--green)'}} onClick={()=>addToast('💰 En cours…')}>💰 Encaisser</Btn>}
-              <Bge status={a.status} />
-            </div>
-          ))
-        }
-      </Card>
+
+      {dayKeys.length === 0
+        ? <Card><div style={{textAlign:'center',padding:'32px 0',color:'var(--t3)',fontSize:14}}>
+            <div style={{fontSize:32,marginBottom:8}}>📅</div>Aucun RDV à venir.
+            <br/><span onClick={()=>setModal(true)} style={{color:'var(--t1)',fontWeight:600,cursor:'pointer',textDecoration:'underline'}}>Ajouter manuellement</span>
+          </div></Card>
+        : dayKeys.map(key => (
+          <Card key={key} style={{marginBottom:12}}>
+            <CardHd title={dayLabel(key)} />
+            {byDay[key].map(a => <ApptRow key={a.id} a={a} />)}
+          </Card>
+        ))
+      }
       {modal&&<div className="overlay"><div className="modal">
         <div className="modal-ttl">+ Nouveau rendez-vous</div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
