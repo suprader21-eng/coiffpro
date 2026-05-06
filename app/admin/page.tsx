@@ -22,6 +22,7 @@ export default function AdminPage() {
   const [page, setPage] = useState('overview')
   const [salons, setSalons] = useState<Salon[]>([])
   const [loading, setLoading] = useState(true)
+  const [apiError, setApiError] = useState('')
   const [sel, setSel] = useState<Salon | null>(null)
   const [search, setSearch] = useState('')
   const tokenRef = useRef<string | null>(null)
@@ -32,9 +33,13 @@ export default function AdminPage() {
       if (!session) { window.location.href = '/login'; return }
       tokenRef.current = session.access_token
       fetch('/api/admin', { headers: { Authorization: `Bearer ${session.access_token}` } })
-        .then(r => r.json())
-        .then(j => { setSalons(j.salons || []); setLoading(false) })
-        .catch(() => setLoading(false))
+        .then(async r => {
+          const j = await r.json()
+          if (!r.ok) { setApiError(`Erreur ${r.status}: ${j.error || 'inconnue'}`); setLoading(false); return }
+          setSalons(j.salons || [])
+          setLoading(false)
+        })
+        .catch(e => { setApiError('Erreur réseau: ' + e.message); setLoading(false) })
     })
   }, [])
 
@@ -63,6 +68,14 @@ export default function AdminPage() {
   if (loading) return (
     <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Outfit',system-ui,sans-serif", background: '#fafafa' }}>
       <div style={{ fontSize: 14, color: '#888' }}>Chargement…</div>
+    </div>
+  )
+
+  if (apiError) return (
+    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: "'Outfit',system-ui,sans-serif", background: '#fafafa', gap: 12 }}>
+      <div style={{ fontSize: 16, fontWeight: 600, color: '#d04040' }}>Accès refusé ou erreur API</div>
+      <div style={{ fontSize: 13, color: '#888', padding: '10px 20px', background: '#fff', border: '1px solid #e8e8e8', borderRadius: 8, maxWidth: 500, wordBreak: 'break-all' }}>{apiError}</div>
+      <div style={{ fontSize: 12, color: '#aaa' }}>Vérifiez que la variable ADMIN_EMAIL dans Vercel correspond à votre email de connexion, ou supprimez-la pour autoriser tous les comptes.</div>
     </div>
   )
 
