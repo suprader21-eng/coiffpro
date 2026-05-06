@@ -1,11 +1,10 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { getBrowserClient } from '@/lib/supabase'
-const sb = getBrowserClient()
 import { addDays, format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
-/* ── Supabase public client ── */
+const sb = getBrowserClient()
 
 
 /* ── Types ── */
@@ -245,7 +244,7 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
             <div style={{display:'flex',flexDirection:'column',gap:10}}>
               {/* Option "Premier disponible" */}
               <div onClick={()=>{setSelEmp(null);setStep(3)}}
-                style={{display:'flex',alignItems:'center',gap:12,padding:'14px',border:`1.5px solid ${selEmp===null&&step===3?T:'#f0f0f0'}`,borderRadius:12,cursor:'pointer',background:'#e8f7ee',transition:'all .15s'}}>
+                style={{display:'flex',alignItems:'center',gap:12,padding:'14px',border:'1.5px solid #f0f0f0',borderRadius:12,cursor:'pointer',background:'#e8f7ee',transition:'all .15s'}}>
                 <div style={{width:46,height:46,borderRadius:'50%',background:'#3dba6f',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>★</div>
                 <div>
                   <div style={{fontSize:14,fontWeight:600}}>Premier disponible</div>

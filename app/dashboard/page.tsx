@@ -113,26 +113,24 @@ export default function Dashboard() {
       if (!session?.user) { router.push('/login'); return }
 
       const userEmail = session.user.email
-      const { data: salonData, error: salonErr } = await sb.from('salons').select('*').eq('email', userEmail).single()
-      
+      let { data: salonData, error: salonErr } = await sb.from('salons').select('*').eq('email', userEmail).single()
+
       if (salonErr || !salonData) {
         console.error('Salon not found for email:', userEmail, salonErr)
         // Attendre 1s et réessayer une fois (session parfois en cours d'initialisation)
         await new Promise(r => setTimeout(r, 1000))
         const { data: retry } = await sb.from('salons').select('*').eq('email', userEmail).single()
         if (!retry) { router.push('/login'); return }
-        setSalon(retry)
-      } else {
-        setSalon(salonData)
+        salonData = retry
       }
       setSalon(salonData)
 
       const [emps, svcs, cls, appts] = await Promise.all([
-        sb.from('employees').select('*').eq('salon_id', salonData.id).order('sort_order'),
-        sb.from('services').select('*').eq('salon_id', salonData.id).order('sort_order'),
-        sb.from('clients').select('*').eq('salon_id', salonData.id).order('created_at', {ascending:false}),
+        sb.from('employees').select('*').eq('salon_id', salonData!.id).order('sort_order'),
+        sb.from('services').select('*').eq('salon_id', salonData!.id).order('sort_order'),
+        sb.from('clients').select('*').eq('salon_id', salonData!.id).order('created_at', {ascending:false}),
         sb.from('appointments').select('*, client:clients(name,phone), service:services(name,price_cents), employee:employees(name,color)')
-          .eq('salon_id', salonData.id).order('scheduled_at', {ascending:false}).limit(50)
+          .eq('salon_id', salonData!.id).order('scheduled_at', {ascending:false}).limit(50)
       ])
       setEmployees(emps.data || [])
       setServices(svcs.data || [])
