@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation'
 
 /* ─── Types ─── */
 type Salon = { id:string; name:string; slug:string; email:string; phone:string; address:string; city:string; description:string; instagram:string; google_link:string; google_maps_embed:string; primary_color:string; accent_color:string; status:string; plan_price:number; trial_ends_at:string; sumup_merchant_code:string; sumup_access_token:string }
-type Employee = { id:string; name:string; role:string; color:string; is_active:boolean }
+type Employee = { id:string; name:string; role:string; color:string; is_active:boolean; sort_order:number }
 type Service = { id:string; name:string; category:string; duration_minutes:number; price_cents:number; is_active:boolean }
 type Client = { id:string; name:string; phone:string; email:string; visit_count:number; total_spent_cents:number; loyalty_points:number; gift_available:boolean; last_visit_at:string; notes:string }
 type Appointment = { id:string; scheduled_at:string; status:string; price_cents:number; final_price_cents:number; paid:boolean; payment_method:string; client:Client|null; service:Service|null; employee:Employee|null }
+type Product = { id:string; salon_id:string; reference:string; name:string; brand:string; category:string; stock_quantity:number; stock_alert:number; purchase_price_cents:number; sale_price_cents:number; is_active:boolean }
 
 /* ─── Helpers ─── */
 const ini = (n:string) => n?.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) || '?'
@@ -56,6 +57,7 @@ const NAV_GROUPS = [
   { label:'SALON', items:[
     {id:'equipe',label:'Équipe',icon:'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M23 21v-2a4 4 0 0 0-3-3.87'},
     {id:'services',label:'Services & Tarifs',icon:'M4 6h16M4 10h16M4 14h16M4 18h16'},
+    {id:'stock',label:'Stock produits',icon:'M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z M12 12v.01'},
     {id:'paiements',label:'Paiements SumUp',icon:'M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0-2-2z M1 10h22'},
     {id:'avis',label:'Avis Google',icon:'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'},
     {id:'rappels',label:'Rappels auto',icon:'M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z'},
@@ -68,15 +70,16 @@ const NAV_GROUPS = [
 
 const PAGE_TITLES:Record<string,string> = {
   dashboard:'Tableau de bord',agenda:'Agenda',clients:'Clients & CRM',fidelite:'Fidélité & Remises',
-  marketing:'Campagnes SMS',equipe:'Équipe',services:'Services & Tarifs',paiements:'Paiements SumUp',
-  avis:'Avis Google',rappels:'Rappels automatiques','ma-page':'Ma page client',parametres:'Paramètres',
+  marketing:'Campagnes SMS',equipe:'Équipe',services:'Services & Tarifs',stock:'Stock produits',
+  paiements:'Paiements SumUp',avis:'Avis Google',rappels:'Rappels automatiques',
+  'ma-page':'Ma page client',parametres:'Paramètres',
 }
 
 const MOBILE_NAV = [
   {id:'dashboard',label:'Accueil',icon:'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10'},
   {id:'agenda',label:'Agenda',icon:'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z'},
   {id:'clients',label:'Clients',icon:'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75'},
-  {id:'ma-page',label:'Ma page',icon:'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'},
+  {id:'stock',label:'Stock',icon:'M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z'},
   {id:'parametres',label:'Réglages',icon:'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83'},
 ]
 
@@ -94,6 +97,7 @@ export default function Dashboard() {
   const [services, setServices] = useState<Service[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState('')
   const [theme, setTheme] = useState('light')
@@ -105,10 +109,8 @@ export default function Dashboard() {
 
   const nav = (p:string) => { setPage(p); setSidebarOpen(false) }
 
-  // Load data
   useEffect(()=>{
     async function load() {
-      // getSession() lit localStorage sans appel réseau - plus fiable que getUser()
       const { data: { session } } = await sb.auth.getSession()
       if (!session?.user) { router.push('/login'); return }
 
@@ -117,7 +119,6 @@ export default function Dashboard() {
 
       if (salonErr || !salonData) {
         console.error('Salon not found for email:', userEmail, salonErr)
-        // Attendre 1s et réessayer une fois (session parfois en cours d'initialisation)
         await new Promise(r => setTimeout(r, 1000))
         const { data: retry } = await sb.from('salons').select('*').eq('email', userEmail).single()
         if (!retry) { router.push('/login'); return }
@@ -125,17 +126,19 @@ export default function Dashboard() {
       }
       setSalon(salonData)
 
-      const [emps, svcs, cls, appts] = await Promise.all([
+      const [emps, svcs, cls, appts, prods] = await Promise.all([
         sb.from('employees').select('*').eq('salon_id', salonData!.id).order('sort_order'),
         sb.from('services').select('*').eq('salon_id', salonData!.id).order('sort_order'),
         sb.from('clients').select('*').eq('salon_id', salonData!.id).order('created_at', {ascending:false}),
         sb.from('appointments').select('*, client:clients(name,phone), service:services(name,price_cents), employee:employees(name,color)')
-          .eq('salon_id', salonData!.id).order('scheduled_at', {ascending:false}).limit(50)
+          .eq('salon_id', salonData!.id).order('scheduled_at', {ascending:false}).limit(50),
+        sb.from('products').select('*').eq('salon_id', salonData!.id).order('created_at', {ascending:false}),
       ])
       setEmployees(emps.data || [])
       setServices(svcs.data || [])
       setClients(cls.data || [])
       setAppointments(appts.data || [])
+      setProducts(prods.data || [])
       setLoading(false)
     }
     load()
@@ -150,6 +153,7 @@ export default function Dashboard() {
   const caToday = todayAppts.filter(a=>a.paid).reduce((s,a)=>s+a.price_cents,0)
   const unpaid = todayAppts.filter(a=>!a.paid&&a.status==='confirmed')
   const gifts = clients.filter(c=>c.gift_available).length
+  const lowStock = products.filter(p=>p.is_active && p.stock_quantity <= p.stock_alert)
 
   if (loading) return (
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'Outfit',system-ui,sans-serif",background:'#fafafa'}}>
@@ -174,6 +178,11 @@ export default function Dashboard() {
       {unpaid.length>0&&<div onClick={()=>nav('agenda')} style={{background:'#fdf6e6',border:'1px solid #eed898',borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
         <span>💰</span>
         <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:'var(--gold)'}}>{unpaid.length} RDV non encaissés</div><div style={{fontSize:11,color:'var(--gold)',opacity:.7}}>Voir dans l'agenda →</div></div>
+      </div>}
+
+      {lowStock.length>0&&<div onClick={()=>nav('stock')} style={{background:'#fff5f5',border:'1px solid #fbbfbf',borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
+        <span>📦</span>
+        <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:'var(--red)'}}>{lowStock.length} produit{lowStock.length>1?'s':''} en stock faible</div><div style={{fontSize:11,color:'var(--red)',opacity:.7}}>Voir le stock →</div></div>
       </div>}
 
       {gifts>0&&<div onClick={()=>nav('fidelite')} style={{background:'#e8f7ee',border:'1px solid #b8dfc6',borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
@@ -304,7 +313,17 @@ export default function Dashboard() {
   function PageClients() {
     const [search, setSearch] = useState('')
     const [sel, setSel] = useState<Client|null>(null)
+    const [note, setNote] = useState('')
+    const [savingNote, setSavingNote] = useState(false)
     const filtered = clients.filter(c=>c.name.toLowerCase().includes(search.toLowerCase())||c.phone?.includes(search))
+
+    const saveNote = async (clientId: string) => {
+      setSavingNote(true)
+      await sb.from('clients').update({ notes: note }).eq('id', clientId)
+      setClients(c => c.map(x => x.id === clientId ? {...x, notes: note} : x))
+      setSavingNote(false)
+      addToast('✅ Note sauvegardée')
+    }
 
     if (sel) return <>
       <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
@@ -339,8 +358,16 @@ export default function Dashboard() {
         </div>
         <Card>
           <CardHd title="Notes internes" />
-          <textarea defaultValue={sel.notes||''} className="input" style={{height:100,resize:'none' as const,lineHeight:1.5}} />
-          <Btn onClick={()=>addToast('✅ Note sauvegardée')} style={{marginTop:8,width:'100%'}}>Sauvegarder</Btn>
+          <textarea
+            value={note||sel.notes||''}
+            onChange={e=>setNote(e.target.value)}
+            onFocus={()=>{ if(!note) setNote(sel.notes||'') }}
+            className="input" style={{height:100,resize:'none' as const,lineHeight:1.5}}
+            placeholder="Notes internes sur ce client…"
+          />
+          <Btn onClick={()=>saveNote(sel.id)} disabled={savingNote} style={{marginTop:8,width:'100%'}}>
+            {savingNote ? 'Sauvegarde…' : 'Sauvegarder'}
+          </Btn>
         </Card>
       </div>
     </>
@@ -361,7 +388,7 @@ export default function Dashboard() {
           <table className="table">
             <thead><tr><th>Client</th><th>Téléphone</th><th>Visites</th><th className="mob-hide">CA total</th><th className="mob-hide">Fidélité</th></tr></thead>
             <tbody>{filtered.map(c=>(
-              <tr key={c.id} style={{cursor:'pointer'}} onClick={()=>setSel(c)}>
+              <tr key={c.id} style={{cursor:'pointer'}} onClick={()=>{ setSel(c); setNote(c.notes||'') }}>
                 <td><div style={{display:'flex',alignItems:'center',gap:8}}>
                   <div style={{width:26,height:26,borderRadius:'50%',background:'#c8a96e22',color:'#c8a96e',display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,fontWeight:700,flexShrink:0}}>{ini(c.name)}</div>
                   <span style={{fontWeight:500}}>{c.name}{c.gift_available&&<span style={{display:'inline-flex',background:'#e8f7ee',border:'1px solid #b8dfc6',borderRadius:5,padding:'1px 5px',fontSize:9,color:'var(--green)',fontWeight:600,marginLeft:5}}>🎁</span>}</span>
@@ -387,6 +414,40 @@ export default function Dashboard() {
 
   function PageEquipe() {
     const [modal, setModal] = useState(false)
+    const [empForm, setEmpForm] = useState({ name:'', role:'Coiffeur(se)' })
+    const [saving, setSaving] = useState(false)
+
+    const addEmp = async () => {
+      if (!empForm.name.trim()) return
+      setSaving(true)
+      const { data, error } = await sb.from('employees').insert({
+        salon_id: salon!.id,
+        name: empForm.name.trim(),
+        role: empForm.role,
+        is_active: true,
+        sort_order: employees.length,
+        color: '#c8a96e',
+        specialties: [],
+        rating: 5.0,
+        review_count: 0,
+      }).select().single()
+      setSaving(false)
+      if (data) {
+        setEmployees(e => [...e, data])
+        setEmpForm({ name:'', role:'Coiffeur(se)' })
+        setModal(false)
+        addToast('✅ Collaborateur ajouté !')
+      } else {
+        addToast('❌ Erreur : ' + error?.message)
+      }
+    }
+
+    const toggleEmp = async (emp: Employee) => {
+      await sb.from('employees').update({ is_active: !emp.is_active }).eq('id', emp.id)
+      setEmployees(e => e.map(x => x.id === emp.id ? {...x, is_active: !x.is_active} : x))
+      addToast('✅ Statut mis à jour')
+    }
+
     return <>
       <div style={{display:'flex',justifyContent:'flex-end',marginBottom:12}}>
         <Btn onClick={()=>setModal(true)}>+ Ajouter un collaborateur</Btn>
@@ -403,20 +464,28 @@ export default function Dashboard() {
             <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
               <div style={{width:40,height:40,borderRadius:'50%',background:(e.color||'#c8a96e')+'22',color:e.color||'#c8a96e',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700}}>{ini(e.name)}</div>
               <div style={{flex:1}}><div style={{fontSize:14,fontWeight:600}}>{e.name}</div><div style={{fontSize:11,color:'var(--t3)'}}>{e.role}</div></div>
-              <Tgl on={e.is_active} onChange={()=>addToast('✅ Statut mis à jour')} />
+              <Tgl on={e.is_active} onChange={()=>toggleEmp(e)} />
             </div>
-            <Btn ghost style={{width:'100%'}} onClick={()=>addToast('✏ Modifier le collaborateur')}>Modifier</Btn>
+            <div style={{fontSize:11,color:'var(--t3)'}}>
+              {e.is_active ? '🟢 Actif' : '⚫ Inactif — non visible sur la page client'}
+            </div>
           </Card>
         ))}
       </div>
       )}
       {modal&&<div className="overlay"><div className="modal">
         <div className="modal-ttl">+ Nouveau collaborateur</div>
-        <FRow label="Nom complet"><Inp placeholder="Prénom Nom" /></FRow>
-        <FRow label="Rôle / Spécialité"><Inp placeholder="Coiffeur(se), Barbier…" /></FRow>
+        <FRow label="Nom complet">
+          <Inp placeholder="Prénom Nom" value={empForm.name} onChange={v=>setEmpForm(f=>({...f,name:v}))} />
+        </FRow>
+        <FRow label="Rôle / Spécialité">
+          <Inp placeholder="Coiffeur(se), Barbier…" value={empForm.role} onChange={v=>setEmpForm(f=>({...f,role:v}))} />
+        </FRow>
         <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:14}}>
           <Btn ghost onClick={()=>setModal(false)}>Annuler</Btn>
-          <Btn onClick={()=>{setModal(false);addToast('✅ Collaborateur ajouté !')}}>Ajouter</Btn>
+          <Btn onClick={addEmp} disabled={saving||!empForm.name.trim()}>
+            {saving ? 'Ajout…' : 'Ajouter'}
+          </Btn>
         </div>
       </div></div>}
     </>
@@ -424,6 +493,38 @@ export default function Dashboard() {
 
   function PageServices() {
     const [modal, setModal] = useState(false)
+    const [svcForm, setSvcForm] = useState({ name:'', category:'Coupes', duration_minutes:30, price_cents:2000 })
+    const [saving, setSaving] = useState(false)
+
+    const addSvc = async () => {
+      if (!svcForm.name.trim()) return
+      setSaving(true)
+      const { data, error } = await sb.from('services').insert({
+        salon_id: salon!.id,
+        name: svcForm.name.trim(),
+        category: svcForm.category,
+        duration_minutes: svcForm.duration_minutes,
+        price_cents: svcForm.price_cents,
+        sort_order: services.length,
+        is_active: true,
+      }).select().single()
+      setSaving(false)
+      if (data) {
+        setServices(s => [...s, data])
+        setSvcForm({ name:'', category:'Coupes', duration_minutes:30, price_cents:2000 })
+        setModal(false)
+        addToast('✅ Service ajouté !')
+      } else {
+        addToast('❌ Erreur : ' + error?.message)
+      }
+    }
+
+    const toggleSvc = async (svc: Service) => {
+      await sb.from('services').update({ is_active: !svc.is_active }).eq('id', svc.id)
+      setServices(s => s.map(x => x.id === svc.id ? {...x, is_active: !x.is_active} : x))
+      addToast('✅ Statut mis à jour')
+    }
+
     return <>
       <div style={{display:'flex',justifyContent:'flex-end',marginBottom:12}}>
         <Btn onClick={()=>setModal(true)}>+ Ajouter un service</Btn>
@@ -435,15 +536,14 @@ export default function Dashboard() {
           </div>
         ) : (
         <table className="table">
-          <thead><tr><th>Prestation</th><th>Catégorie</th><th>Durée</th><th>Prix</th><th>Actif</th><th></th></tr></thead>
+          <thead><tr><th>Prestation</th><th>Catégorie</th><th>Durée</th><th>Prix</th><th>Actif</th></tr></thead>
           <tbody>{services.map(s=>(
             <tr key={s.id}>
               <td style={{fontWeight:500}}>{s.name}</td>
               <td style={{color:'var(--t2)'}}>{s.category}</td>
               <td style={{color:'var(--t2)'}}>{fmtDur(s.duration_minutes)}</td>
               <td style={{fontWeight:700}}>{fmt(s.price_cents)}</td>
-              <td><Tgl on={s.is_active} onChange={()=>addToast('✅ Statut mis à jour')} /></td>
-              <td><Btn ghost onClick={()=>addToast(`✏ Modifier ${s.name}`)}>✏</Btn></td>
+              <td><Tgl on={s.is_active} onChange={()=>toggleSvc(s)} /></td>
             </tr>
           ))}</tbody>
         </table>
@@ -452,16 +552,201 @@ export default function Dashboard() {
       {modal&&<div className="overlay"><div className="modal">
         <div className="modal-ttl">+ Nouveau service</div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-          <FRow label="Nom"><Inp placeholder="Ex: Coupe Homme" /></FRow>
+          <FRow label="Nom"><Inp placeholder="Ex: Coupe Homme" value={svcForm.name} onChange={v=>setSvcForm(f=>({...f,name:v}))} /></FRow>
           <FRow label="Catégorie">
-            <select className="input"><option>Coupes</option><option>Barbier</option><option>Couleurs</option><option>Soins</option></select>
+            <select className="input" value={svcForm.category} onChange={e=>setSvcForm(f=>({...f,category:e.target.value}))}>
+              <option>Coupes</option><option>Barbier</option><option>Couleurs</option><option>Soins</option><option>Forfaits</option>
+            </select>
           </FRow>
-          <FRow label="Durée (min)"><Inp type="number" placeholder="30" /></FRow>
-          <FRow label="Prix (€)"><Inp type="number" placeholder="20" /></FRow>
+          <FRow label="Durée (min)">
+            <Inp type="number" placeholder="30" value={String(svcForm.duration_minutes)} onChange={v=>setSvcForm(f=>({...f,duration_minutes:Number(v)}))} />
+          </FRow>
+          <FRow label="Prix (€)">
+            <Inp type="number" placeholder="20" value={String(svcForm.price_cents/100)} onChange={v=>setSvcForm(f=>({...f,price_cents:Math.round(Number(v)*100)}))} />
+          </FRow>
         </div>
         <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:14}}>
           <Btn ghost onClick={()=>setModal(false)}>Annuler</Btn>
-          <Btn onClick={()=>{setModal(false);addToast('✅ Service ajouté !')}}>Ajouter</Btn>
+          <Btn onClick={addSvc} disabled={saving||!svcForm.name.trim()}>
+            {saving ? 'Ajout…' : 'Ajouter'}
+          </Btn>
+        </div>
+      </div></div>}
+    </>
+  }
+
+  function PageStock() {
+    const [modal, setModal] = useState(false)
+    const [editModal, setEditModal] = useState<Product|null>(null)
+    const [saving, setSaving] = useState(false)
+    const [form, setForm] = useState({
+      reference:'', name:'', brand:'', category:'Soins',
+      stock_quantity:0, stock_alert:5,
+      purchase_price_cents:0, sale_price_cents:0,
+    })
+
+    const resetForm = () => setForm({ reference:'', name:'', brand:'', category:'Soins', stock_quantity:0, stock_alert:5, purchase_price_cents:0, sale_price_cents:0 })
+
+    const addProduct = async () => {
+      if (!form.name.trim() || !form.reference.trim()) return
+      setSaving(true)
+      const { data, error } = await sb.from('products').insert({
+        salon_id: salon!.id,
+        reference: form.reference.trim(),
+        name: form.name.trim(),
+        brand: form.brand,
+        category: form.category,
+        stock_quantity: form.stock_quantity,
+        stock_alert: form.stock_alert,
+        purchase_price_cents: form.purchase_price_cents,
+        sale_price_cents: form.sale_price_cents,
+        is_active: true,
+      }).select().single()
+      setSaving(false)
+      if (data) {
+        setProducts(p => [data, ...p])
+        resetForm()
+        setModal(false)
+        addToast('✅ Produit ajouté !')
+      } else {
+        addToast('❌ ' + (error?.message || 'Erreur'))
+      }
+    }
+
+    const adjustStock = async (prod: Product, delta: number) => {
+      const newQty = Math.max(0, prod.stock_quantity + delta)
+      await sb.from('products').update({ stock_quantity: newQty }).eq('id', prod.id)
+      setProducts(p => p.map(x => x.id === prod.id ? {...x, stock_quantity: newQty} : x))
+    }
+
+    const setStockDirect = async (prod: Product, qty: number) => {
+      const newQty = Math.max(0, qty)
+      await sb.from('products').update({ stock_quantity: newQty }).eq('id', prod.id)
+      setProducts(p => p.map(x => x.id === prod.id ? {...x, stock_quantity: newQty} : x))
+    }
+
+    const deleteProduct = async (prod: Product) => {
+      if (!confirm(`Supprimer "${prod.name}" ?`)) return
+      await sb.from('products').delete().eq('id', prod.id)
+      setProducts(p => p.filter(x => x.id !== prod.id))
+      addToast('🗑 Produit supprimé')
+    }
+
+    const totalStock = products.filter(p=>p.is_active).reduce((s,p)=>s+p.stock_quantity,0)
+    const stockValue = products.filter(p=>p.is_active).reduce((s,p)=>s+(p.stock_quantity*p.purchase_price_cents),0)
+
+    return <>
+      <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginBottom:12}}>
+        <Btn onClick={()=>{ resetForm(); setModal(true) }}>+ Ajouter un produit</Btn>
+      </div>
+
+      <div className="g3" style={{marginBottom:12}}>
+        <SC label="Produits référencés" value={products.filter(p=>p.is_active).length} />
+        <SC label="Unités en stock" value={totalStock} />
+        <SC label="Valeur du stock" value={fmt(stockValue)} up />
+      </div>
+
+      {lowStock.length>0&&<div style={{background:'#fff5f5',border:'1px solid #fbbfbf',borderRadius:10,padding:'10px 14px',marginBottom:12}}>
+        <div style={{fontSize:12,fontWeight:600,color:'var(--red)',marginBottom:6}}>⚠ Stock faible — {lowStock.length} produit{lowStock.length>1?'s':''} à reapprovisionner</div>
+        {lowStock.map(p=>(
+          <div key={p.id} style={{fontSize:11,color:'var(--red)',marginBottom:2}}>• {p.name} ({p.reference}) — {p.stock_quantity} unité{p.stock_quantity!==1?'s':''} restante{p.stock_quantity!==1?'s':''}</div>
+        ))}
+      </div>}
+
+      <Card>
+        {products.length===0 ? (
+          <div style={{textAlign:'center',padding:'32px 0',color:'var(--t3)',fontSize:13}}>
+            <div style={{fontSize:32,marginBottom:8}}>📦</div>
+            Ajoutez vos produits pour gérer votre stock.
+          </div>
+        ) : (
+        <div style={{overflowX:'auto' as const}}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Réf.</th>
+                <th>Produit</th>
+                <th className="mob-hide">Marque</th>
+                <th className="mob-hide">Catégorie</th>
+                <th>Stock</th>
+                <th className="mob-hide">P.A.</th>
+                <th className="mob-hide">P.V.</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {products.map(p=>{
+                const alert = p.stock_quantity <= p.stock_alert
+                return (
+                  <tr key={p.id} style={{opacity:p.is_active?1:.5}}>
+                    <td style={{fontFamily:'monospace',fontSize:11,color:'var(--t2)',whiteSpace:'nowrap'}}>{p.reference}</td>
+                    <td>
+                      <div style={{fontWeight:500,fontSize:12}}>{p.name}</div>
+                      {alert&&<div style={{fontSize:9,color:'var(--red)',fontWeight:600,marginTop:1}}>⚠ STOCK FAIBLE</div>}
+                    </td>
+                    <td className="mob-hide" style={{color:'var(--t2)',fontSize:11}}>{p.brand||'—'}</td>
+                    <td className="mob-hide" style={{color:'var(--t2)',fontSize:11}}>{p.category}</td>
+                    <td>
+                      <div style={{display:'flex',alignItems:'center',gap:4}}>
+                        <button onClick={()=>adjustStock(p,-1)} style={{width:20,height:20,borderRadius:4,border:'1px solid var(--b2)',background:'var(--bg)',cursor:'pointer',fontSize:12,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--t1)'}}>−</button>
+                        <input
+                          type="number" min="0"
+                          value={p.stock_quantity}
+                          onChange={e=>setStockDirect(p, Number(e.target.value))}
+                          style={{width:44,textAlign:'center' as const,border:'1px solid var(--b2)',borderRadius:5,padding:'2px 4px',fontSize:12,background:'var(--bg)',color:alert?'var(--red)':'var(--t1)',fontWeight:alert?700:400}}
+                        />
+                        <button onClick={()=>adjustStock(p,+1)} style={{width:20,height:20,borderRadius:4,border:'1px solid var(--b2)',background:'var(--bg)',cursor:'pointer',fontSize:12,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--t1)'}}>+</button>
+                      </div>
+                    </td>
+                    <td className="mob-hide" style={{fontSize:11,color:'var(--t2)'}}>{p.purchase_price_cents?fmt(p.purchase_price_cents):'—'}</td>
+                    <td className="mob-hide" style={{fontSize:11,fontWeight:600}}>{p.sale_price_cents?fmt(p.sale_price_cents):'—'}</td>
+                    <td>
+                      <button onClick={()=>deleteProduct(p)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--t3)',fontSize:14,padding:'2px 6px'}} title="Supprimer">✕</button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        )}
+      </Card>
+
+      {modal&&<div className="overlay"><div className="modal">
+        <div className="modal-ttl">+ Nouveau produit</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          <FRow label="Référence / N° produit *">
+            <Inp placeholder="EX: KERASTASE-001" value={form.reference} onChange={v=>setForm(f=>({...f,reference:v}))} />
+          </FRow>
+          <FRow label="Nom du produit *">
+            <Inp placeholder="Shampoing Bain Satin" value={form.name} onChange={v=>setForm(f=>({...f,name:v}))} />
+          </FRow>
+          <FRow label="Marque">
+            <Inp placeholder="Kérastase, L'Oréal…" value={form.brand} onChange={v=>setForm(f=>({...f,brand:v}))} />
+          </FRow>
+          <FRow label="Catégorie">
+            <select className="input" value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}>
+              <option>Soins</option><option>Colorations</option><option>Styling</option><option>Outillage</option><option>Accessoires</option><option>Autre</option>
+            </select>
+          </FRow>
+          <FRow label="Stock initial (unités)">
+            <Inp type="number" placeholder="0" value={String(form.stock_quantity)} onChange={v=>setForm(f=>({...f,stock_quantity:Number(v)}))} />
+          </FRow>
+          <FRow label="Alerte stock faible">
+            <Inp type="number" placeholder="5" value={String(form.stock_alert)} onChange={v=>setForm(f=>({...f,stock_alert:Number(v)}))} />
+          </FRow>
+          <FRow label="Prix d'achat (€)">
+            <Inp type="number" placeholder="0.00" value={String(form.purchase_price_cents/100||'')} onChange={v=>setForm(f=>({...f,purchase_price_cents:Math.round(Number(v)*100)}))} />
+          </FRow>
+          <FRow label="Prix de vente (€)">
+            <Inp type="number" placeholder="0.00" value={String(form.sale_price_cents/100||'')} onChange={v=>setForm(f=>({...f,sale_price_cents:Math.round(Number(v)*100)}))} />
+          </FRow>
+        </div>
+        <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:14}}>
+          <Btn ghost onClick={()=>setModal(false)}>Annuler</Btn>
+          <Btn onClick={addProduct} disabled={saving||!form.name.trim()||!form.reference.trim()}>
+            {saving ? 'Ajout…' : 'Ajouter le produit'}
+          </Btn>
         </div>
       </div></div>}
     </>
@@ -481,14 +766,15 @@ export default function Dashboard() {
 
     const save = async () => {
       setSaving(true)
-      const sb2 = getBrowserClient()
-      await sb2.from('salons').update({
+      const { error } = await sb.from('salons').update({
         name: f.name, description: f.description, address: f.address,
         city: f.city, phone: f.phone, instagram: f.instagram,
         google_link: f.google_link, google_maps_embed: f.google_maps_embed,
         primary_color: f.primary_color, accent_color: f.accent_color,
       }).eq('id', salon?.id)
       setSaving(false)
+      if (error) { addToast('❌ Erreur : ' + error.message); return }
+      setSalon(s => s ? {...s, ...f} : s)
       addToast('✅ Page mise à jour ! Visible sur coiffpro.fr/book/'+salon?.slug)
     }
 
@@ -561,15 +847,6 @@ export default function Dashboard() {
               <Btn onClick={()=>window.open(`/book/${salon?.slug}`,'_blank')}>Voir la page ↗</Btn>
             </div>
           </Card>
-          <Card>
-            <CardHd title="Photos du salon" />
-            <div style={{fontSize:12,color:'var(--t3)',marginBottom:10}}>Ajoutez des photos de votre salon par URL</div>
-            <div style={{display:'flex',gap:6}}>
-              <input id="photo-url" placeholder="https://…" className="input" style={{flex:1}} />
-              <Btn onClick={()=>addToast('📸 Photo ajoutée !')}>+</Btn>
-            </div>
-            <div style={{fontSize:11,color:'var(--t3)',marginTop:6}}>Les photos s'affichent sur votre page de réservation</div>
-          </Card>
         </div>
       </div>
     </>
@@ -580,6 +857,16 @@ export default function Dashboard() {
       name: salon?.name||'', email: salon?.email||'', phone: salon?.phone||''
     })
     const [saving, setSaving] = useState(false)
+
+    const save = async () => {
+      setSaving(true)
+      const { error } = await sb.from('salons').update({ name: f.name, phone: f.phone }).eq('id', salon!.id)
+      setSaving(false)
+      if (error) { addToast('❌ Erreur : ' + error.message); return }
+      setSalon(s => s ? {...s, name: f.name, phone: f.phone} : s)
+      addToast('✅ Informations sauvegardées')
+    }
+
     const logout = async () => {
       await getBrowserClient().auth.signOut()
       router.push('/login')
@@ -590,9 +877,11 @@ export default function Dashboard() {
           <Card>
             <CardHd title="Informations du compte" />
             <FRow label="Nom du salon"><Inp value={f.name} onChange={v=>setF(p=>({...p,name:v}))} /></FRow>
-            <FRow label="Email"><Inp value={f.email} onChange={v=>setF(p=>({...p,email:v}))} type="email" /></FRow>
+            <FRow label="Email"><Inp value={f.email} type="email" onChange={()=>{}} /></FRow>
             <FRow label="Téléphone"><Inp value={f.phone} onChange={v=>setF(p=>({...p,phone:v}))} /></FRow>
-            <Btn onClick={()=>addToast('✅ Informations sauvegardées')} style={{marginTop:4}}>Sauvegarder</Btn>
+            <Btn onClick={save} disabled={saving} style={{marginTop:4}}>
+              {saving ? 'Sauvegarde…' : 'Sauvegarder'}
+            </Btn>
           </Card>
           <Card>
             <CardHd title="Abonnement" />
@@ -611,7 +900,7 @@ export default function Dashboard() {
             <div style={{background:'#eff6ff',border:'1px solid #bfdbfe',borderRadius:10,padding:14,marginBottom:12}}>
               <div style={{fontSize:13,fontWeight:600,marginBottom:6}}>SumUp — Paiements clients</div>
               <div style={{fontSize:12,color:'#555',lineHeight:1.6,marginBottom:12}}>
-                Connectez votre compte SumUp pour encaisser directement depuis l'agenda. L'argent va sur votre compte SumUp.
+                Connectez votre compte SumUp pour encaisser directement depuis l'agenda.
               </div>
               {salon?.sumup_merchant_code ? (
                 <div style={{background:'#e8f7ee',border:'1px solid #b8dfc6',borderRadius:8,padding:'8px 12px',fontSize:12,color:'var(--green)'}}>
@@ -645,16 +934,13 @@ export default function Dashboard() {
           <div><div style={{fontSize:13,fontWeight:500}}>Activer le programme</div><div style={{fontSize:11,color:'var(--t3)'}}>SMS automatique à la 10ème visite</div></div>
           <Tgl on={true} onChange={()=>addToast('✅ Programme mis à jour')} />
         </div>
-        {clients.filter(c=>(c.loyalty_points||0)>=10).length>0&&<>
-          <div style={{fontSize:11,fontWeight:600,color:'var(--t2)',marginTop:12,marginBottom:8}}>CLIENTS À RÉCOMPENSER</div>
-          {clients.filter(c=>c.gift_available).map(c=>(
-            <div key={c.id} style={{display:'flex',alignItems:'center',gap:8,padding:'7px 0',borderBottom:'1px solid var(--b1)'}}>
-              <span style={{flex:1,fontSize:12,fontWeight:500}}>{c.name}</span>
-              <span style={{fontSize:10,color:'var(--green)',fontWeight:600}}>🎁 10ème visite</span>
-              <Btn ghost onClick={()=>addToast(`📲 SMS cadeau envoyé à ${c.name}`)}>SMS →</Btn>
-            </div>
-          ))}
-        </>}
+        {clients.filter(c=>c.gift_available).map(c=>(
+          <div key={c.id} style={{display:'flex',alignItems:'center',gap:8,padding:'7px 0',borderBottom:'1px solid var(--b1)'}}>
+            <span style={{flex:1,fontSize:12,fontWeight:500}}>{c.name}</span>
+            <span style={{fontSize:10,color:'var(--green)',fontWeight:600}}>🎁 10ème visite</span>
+            <Btn ghost onClick={()=>addToast(`📲 SMS cadeau envoyé à ${c.name}`)}>SMS →</Btn>
+          </div>
+        ))}
       </Card>
     </>
   }
@@ -712,8 +998,7 @@ export default function Dashboard() {
         <CardHd title="Campagnes SMS" action="+ Nouvelle campagne" onAction={()=>addToast('📨 Ouvrir le créateur de campagne')} />
         <div style={{textAlign:'center',padding:'24px 0',color:'var(--t3)',fontSize:13}}>
           <div style={{fontSize:32,marginBottom:8}}>📨</div>
-          Vos campagnes SMS apparaîtront ici.<br/>
-          Ciblez vos clients inactifs, les proches de la fidélité, etc.
+          Vos campagnes SMS apparaîtront ici.
         </div>
       </Card>
     </>
@@ -728,12 +1013,10 @@ export default function Dashboard() {
             <div style={{background:'#e8f7ee',border:'1px solid #b8dfc6',borderRadius:10,padding:14}}>
               <div style={{fontSize:13,fontWeight:600,color:'var(--green)',marginBottom:4}}>✅ SumUp connecté</div>
               <div style={{fontSize:11,color:'var(--t3)'}}>Merchant: {salon.sumup_merchant_code}</div>
-              <div style={{fontSize:12,color:'#555',marginTop:8,lineHeight:1.6}}>Les paiements vont directement sur votre compte SumUp.</div>
             </div>
           ) : (
             <div style={{background:'#eff6ff',border:'1px solid #bfdbfe',borderRadius:10,padding:14}}>
               <div style={{fontSize:13,fontWeight:600,marginBottom:8}}>Connecter votre compte SumUp</div>
-              <div style={{fontSize:12,color:'#555',lineHeight:1.6,marginBottom:12}}>L'argent va directement sur votre compte SumUp — CoiffPro ne touche rien.</div>
               <a href={`/api/sumup/connect?salonId=${salon?.id}`} style={{display:'block',background:'#1a4fa0',color:'#fff',borderRadius:8,padding:'10px',textAlign:'center' as const,fontSize:13,fontWeight:600,textDecoration:'none'}}>
                 🔵 Connecter mon compte SumUp →
               </a>
@@ -758,6 +1041,7 @@ export default function Dashboard() {
       case 'clients':    return <PageClients />
       case 'equipe':     return <PageEquipe />
       case 'services':   return <PageServices />
+      case 'stock':      return <PageStock />
       case 'fidelite':   return <PageFidelite />
       case 'marketing':  return <PageMarketing />
       case 'paiements':  return <PagePaiements />
@@ -850,7 +1134,6 @@ export default function Dashboard() {
       </nav>
 
       <div className="app-layout" style={{display:'flex',height:'calc(100dvh - 48px)',overflow:'hidden'}}>
-        {/* Overlay mobile */}
         {sidebarOpen&&<div style={{position:'fixed',top:48,left:0,right:0,bottom:0,background:'rgba(0,0,0,.4)',zIndex:49}} onClick={()=>setSidebarOpen(false)} />}
 
         {/* SIDEBAR */}
@@ -864,6 +1147,7 @@ export default function Dashboard() {
                     {it.icon.split(' ').map((d,i)=><path key={i} d={d} />)}
                   </svg>
                   <span style={{flex:1}}>{it.label}</span>
+                  {it.id==='stock'&&lowStock.length>0&&<span style={{fontSize:9,background:'var(--red)',color:'#fff',borderRadius:8,padding:'1px 5px',fontWeight:700}}>{lowStock.length}</span>}
                 </div>
               ))}
             </div>
@@ -899,12 +1183,13 @@ export default function Dashboard() {
               {it.icon.split(' ').map((d,i)=><path key={i} d={d} />)}
             </svg>
             {it.label}
+            {it.id==='stock'&&lowStock.length>0&&<span style={{position:'absolute',top:6,fontSize:8,background:'var(--red)',color:'#fff',borderRadius:6,padding:'0 4px'}}>{lowStock.length}</span>}
           </div>
         ))}
       </nav>
 
       {/* TOAST */}
-      {toast&&<div style={{position:'fixed',bottom:16,right:16,background:'var(--t1)',color:'#fff',borderRadius:10,padding:'10px 14px',fontSize:12,zIndex:999,maxWidth:300,lineHeight:1.5,animation:'fadeIn .25s ease'}}>
+      {toast&&<div style={{position:'fixed',bottom:16,right:16,background:'var(--t1)',color:'#fff',borderRadius:10,padding:'10px 14px',fontSize:12,zIndex:999,maxWidth:300,lineHeight:1.5}}>
         {toast}
       </div>}
     </div>
