@@ -4,7 +4,7 @@ import { getBrowserClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
 /* ─── Types ─── */
-type Salon = { id:string; name:string; slug:string; email:string; phone:string; address:string; city:string; description:string; instagram:string; google_link:string; google_maps_embed:string; primary_color:string; accent_color:string; status:string; plan_price:number; trial_ends_at:string; sumup_merchant_code:string; sumup_access_token:string }
+type Salon = { id:string; name:string; slug:string; email:string; phone:string; address:string; city:string; description:string; instagram:string; google_link:string; google_maps_embed:string; primary_color:string; accent_color:string; status:string; plan_price:number; trial_ends_at:string; sumup_merchant_code:string; sumup_access_token:string; admin_message:string; custom_domain:string }
 type Employee = { id:string; name:string; role:string; color:string; is_active:boolean; sort_order:number }
 type Service = { id:string; name:string; category:string; duration_minutes:number; price_cents:number; is_active:boolean }
 type Client = { id:string; name:string; phone:string; email:string; visit_count:number; total_spent_cents:number; loyalty_points:number; gift_available:boolean; last_visit_at:string; notes:string }
@@ -181,6 +181,9 @@ export default function Dashboard() {
         <SC label="Total clients" value={clients.length} sub="dans votre CRM" up />
         <SC label="Cadeaux fidélité" value={gifts} sub="à remettre" up={gifts>0} />
       </div>
+      {salon?.admin_message&&<div style={{background:'#ede9fe',border:'1px solid #c4b5fd',borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10}}>
+        <span>📣</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:'#7c3aed'}}>Message de CoiffPro</div><div style={{fontSize:12,color:'#5b21b6',marginTop:2}}>{salon.admin_message}</div></div>
+      </div>}
       {unpaid.length>0&&<div onClick={()=>nav('agenda')} style={{background:'#fdf6e6',border:'1px solid #eed898',borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
         <span>💰</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:'var(--gold)'}}>{unpaid.length} RDV non encaissés</div><div style={{fontSize:11,color:'var(--gold)',opacity:.7}}>Voir agenda →</div></div>
       </div>}
