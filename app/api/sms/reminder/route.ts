@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
   // RDVs dans la fenêtre 20h-28h (= rappel 24h avant)
   const { data: appointments } = await db.from('appointments')
-    .select('*, client:clients(name,phone), service:services(name), salon:salons(name,phone)')
+    .select('*, client:clients(name,phone), service:services(name), salon:salons(name,phone,notification_settings)')
     .eq('status', 'confirmed')
     .eq('reminder_sent', false)
     .gte('scheduled_at', addHours(now, 20).toISOString())
@@ -24,6 +24,9 @@ export async function GET(req: NextRequest) {
   let sent = 0, failed = 0
 
   for (const appt of appointments || []) {
+    // Respecter le paramètre du salon
+    const ns = appt.salon?.notification_settings as Record<string,boolean>|null
+    if (ns && ns.reminder_24h === false) { continue }
     const d = new Date(appt.scheduled_at)
     const time = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
     const date = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })

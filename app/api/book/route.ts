@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     const db = getSupabaseAdmin()
 
     const { data: salon } = await db.from('salons')
-      .select('id, name, phone, google_link')
+      .select('id, name, phone, google_link, notification_settings')
       .eq('id', salonId).single()
     if (!salon) return NextResponse.json({ error: 'Salon introuvable' }, { status: 404 })
 
@@ -55,8 +55,10 @@ export async function POST(req: NextRequest) {
 
     if (!appointment) return NextResponse.json({ error: 'Erreur RDV' }, { status: 500 })
 
-    // Envoyer SMS de confirmation — affiche le nom du salon comme expéditeur
-    const smsResult = await sendConfirmation({
+    // Envoyer SMS de confirmation si activé
+    const ns = (salon as any).notification_settings as Record<string,boolean>|null
+    const smsEnabled = !ns || ns.confirmation !== false
+    const smsResult = smsEnabled ? await sendConfirmation({
       clientName: firstName,
       clientPhone: phone,
       serviceName: service?.name || 'votre prestation',
@@ -64,7 +66,7 @@ export async function POST(req: NextRequest) {
       time,
       salonName: salon.name,
       salonPhone: salon.phone,
-    })
+    }) : { success: false }
 
     // Logger le SMS
     if (smsResult.success) {

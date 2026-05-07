@@ -11,10 +11,12 @@ export async function POST(req: NextRequest) {
     // ── Demande d'avis Google (2h après RDV) ──
     if (type === 'review_request' && appointmentId) {
       const { data: appt } = await db.from('appointments')
-        .select('*, client:clients(name,phone), salon:salons(name,google_link)')
+        .select('*, client:clients(name,phone), salon:salons(name,google_link,notification_settings)')
         .eq('id', appointmentId).single()
 
       if (!appt || appt.review_sent) return NextResponse.json({ message: 'Skip' })
+      const ns = appt.salon?.notification_settings as Record<string,boolean>|null
+      if (ns && ns.review_request === false) return NextResponse.json({ message: 'Skip (désactivé)' })
 
       const result = await sendReviewRequest({
         clientName: appt.client.name.split(' ')[0],
@@ -37,9 +39,11 @@ export async function POST(req: NextRequest) {
     // ── SMS fidélité (10ème visite) ──
     if (type === 'loyalty' && clientId && salonId) {
       const { data: client } = await db.from('clients').select('*').eq('id', clientId).single()
-      const { data: salon } = await db.from('salons').select('name').eq('id', salonId).single()
+      const { data: salon } = await db.from('salons').select('name,notification_settings').eq('id', salonId).single()
 
       if (!client || !salon) return NextResponse.json({ error: 'Introuvable' }, { status: 404 })
+      const ns = salon.notification_settings as Record<string,boolean>|null
+      if (ns && ns.loyalty === false) return NextResponse.json({ message: 'Skip (désactivé)' })
 
       const result = await sendLoyaltyReward({
         clientName: client.name.split(' ')[0],
@@ -60,8 +64,10 @@ export async function POST(req: NextRequest) {
     // ── Relance client inactif ──
     if (type === 'reactivation' && clientId && salonId) {
       const { data: client } = await db.from('clients').select('*').eq('id', clientId).single()
-      const { data: salon } = await db.from('salons').select('name, slug').eq('id', salonId).single()
+      const { data: salon } = await db.from('salons').select('name,slug,notification_settings').eq('id', salonId).single()
       if (!client || !salon) return NextResponse.json({ error: 'Introuvable' }, { status: 404 })
+      const ns = salon.notification_settings as Record<string,boolean>|null
+      if (ns && ns.reactivation === false) return NextResponse.json({ message: 'Skip (désactivé)' })
 
       const weeksSince = body.weeksSince || 6
       const result = await sendReactivation({
