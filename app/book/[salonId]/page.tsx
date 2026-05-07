@@ -412,11 +412,15 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
         .rev-card:hover{transform:translateY(-2px)}
         @keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
         .fi{animation:fi .5s ease both}
+        @media(prefers-color-scheme:dark){.salon-logo{filter:brightness(0) invert(1)}}
       `}</style>
 
       {/* Nav */}
       <nav style={{position:'sticky',top:0,zIndex:50,background:'rgba(255,255,255,.95)',backdropFilter:'blur(12px)',borderBottom:'1px solid #f0f0f0',height:58,display:'flex',alignItems:'center',padding:'0 24px',gap:16}}>
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:21,fontWeight:700}}>✂ {salon.name}</div>
+        {(salon as any).logo_url
+          ? <img src={(salon as any).logo_url} alt={salon.name} style={{height:32,maxWidth:100,objectFit:'contain'}} className="salon-logo" />
+          : <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:21,fontWeight:700}}>✂ {salon.name}</div>
+        }
         <div style={{marginLeft:'auto',display:'flex',gap:8}}>
           {salon.phone&&<a href={`tel:${salon.phone}`} style={{fontSize:12,color:'#666',padding:'6px 12px',border:'1px solid #f0f0f0',borderRadius:8}}>Appeler</a>}
           <button onClick={()=>setView('booking')} style={{background:T,color:'#fff',border:'none',borderRadius:9,padding:'9px 18px',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>Prendre RDV</button>

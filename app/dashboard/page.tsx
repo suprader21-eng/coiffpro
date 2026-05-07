@@ -4,7 +4,7 @@ import { getBrowserClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
 /* ─── Types ─── */
-type Salon = { id:string; name:string; slug:string; email:string; phone:string; address:string; city:string; description:string; instagram:string; google_link:string; google_maps_embed:string; primary_color:string; accent_color:string; status:string; plan_price:number; trial_ends_at:string; sumup_merchant_code:string; sumup_access_token:string; admin_message:string; custom_domain:string }
+type Salon = { id:string; name:string; slug:string; email:string; phone:string; address:string; city:string; description:string; instagram:string; google_link:string; google_maps_embed:string; primary_color:string; accent_color:string; status:string; plan_price:number; trial_ends_at:string; sumup_merchant_code:string; sumup_access_token:string; admin_message:string; custom_domain:string; logo_url:string; notification_settings:Record<string,boolean>|null; stripe_customer_id:string }
 type Employee = { id:string; name:string; role:string; color:string; is_active:boolean; sort_order:number }
 type Service = { id:string; name:string; category:string; duration_minutes:number; price_cents:number; is_active:boolean }
 type Client = { id:string; name:string; phone:string; email:string; visit_count:number; total_spent_cents:number; loyalty_points:number; gift_available:boolean; last_visit_at:string; notes:string }
@@ -760,12 +760,46 @@ export default function Dashboard() {
           <Card>
             <CardHd title="Carte Google Maps" />
             <textarea value={f.google_maps_embed} onChange={e=>up('google_maps_embed',e.target.value)} className="input" style={{height:60,resize:'none' as const,fontSize:11}} placeholder="https://www.google.com/maps/embed?pb=..." />
-            {f.google_maps_embed&&<div style={{marginTop:8,borderRadius:8,overflow:'hidden',height:160}}><iframe src={f.google_maps_embed} style={{width:'100%',height:'100%',border:'none'}} loading="lazy" /></div>}
+            {f.google_maps_embed && (
+              f.google_maps_embed.includes('maps/embed') || f.google_maps_embed.includes('maps.google.com/maps?')
+                ? <div style={{marginTop:8,borderRadius:8,overflow:'hidden',height:160}}><iframe src={f.google_maps_embed} style={{width:'100%',height:'100%',border:'none'}} loading="lazy" /></div>
+                : <div style={{marginTop:8,padding:'10px 12px',background:'#fdf6e6',border:'1px solid #eed898',borderRadius:8,fontSize:12,color:'#92400e',lineHeight:1.6}}>
+                    ⚠ Cette URL ne peut pas s'afficher dans une carte intégrée.<br/>
+                    <strong>Comment obtenir la bonne URL :</strong><br/>
+                    1. Ouvre <strong>Google Maps</strong> sur ton adresse<br/>
+                    2. Clique <strong>Partager</strong> → <strong>Intégrer une carte</strong><br/>
+                    3. Copie uniquement l'URL à l'intérieur de <code>src="..."</code><br/>
+                    Elle commence par <code>https://www.google.com/maps/embed?pb=</code>
+                  </div>
+            )}
           </Card>
         </div>
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
           <Card>
-            <CardHd title="Couleurs & branding" />
+            <CardHd title="Logo & couleurs" />
+            <FRow label="Logo du salon">
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                {salon?.logo_url
+                  ? <img src={salon.logo_url} alt="logo" style={{width:48,height:48,objectFit:'contain',borderRadius:8,border:'1px solid var(--b1)',background:'#fff',filter:theme==='dark'?'brightness(0) invert(1)':'none'}} />
+                  : <div style={{width:48,height:48,borderRadius:8,background:'var(--s1)',border:'1px solid var(--b1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>✂</div>
+                }
+                <label style={{cursor:'pointer',flex:1}}>
+                  <input type="file" accept="image/*" style={{display:'none'}} onChange={async e=>{
+                    const file=e.target.files?.[0]; if(!file) return
+                    const fd=new FormData(); fd.append('file',file); fd.append('type','logo')
+                    addToast('⏳ Upload en cours…')
+                    const res=await fetch('/api/storage/upload',{method:'POST',headers:{Authorization:`Bearer ${tokenRef.current}`},body:fd})
+                    const j=await res.json()
+                    if(res.ok){setSalon(s=>s?{...s,logo_url:j.url}:s);addToast('✅ Logo mis à jour !')}
+                    else addToast('❌ '+j.error+' — Créez le bucket "salon-photos" dans Supabase Storage')
+                  }} />
+                  <div style={{background:'var(--s1)',border:'1px solid var(--b2)',borderRadius:8,padding:'8px 12px',fontSize:12,textAlign:'center' as const}}>
+                    📷 Changer le logo
+                  </div>
+                </label>
+              </div>
+              <div style={{fontSize:10,color:'var(--t3)',marginTop:4}}>PNG/JPG recommandé. Le logo s'adapte automatiquement au mode sombre.</div>
+            </FRow>
             <FRow label="Couleur principale"><div style={{display:'flex',gap:8,alignItems:'center'}}><input type="color" value={f.primary_color} onChange={e=>up('primary_color',e.target.value)} style={{width:36,height:36,border:'1px solid var(--b1)',borderRadius:8,cursor:'pointer',padding:2}} /><Inp value={f.primary_color} onChange={v=>up('primary_color',v)} /></div></FRow>
             <FRow label="Couleur accent"><div style={{display:'flex',gap:8,alignItems:'center'}}><input type="color" value={f.accent_color} onChange={e=>up('accent_color',e.target.value)} style={{width:36,height:36,border:'1px solid var(--b1)',borderRadius:8,cursor:'pointer',padding:2}} /><Inp value={f.accent_color} onChange={v=>up('accent_color',v)} /></div></FRow>
             <div style={{background:'var(--s1)',border:'1px solid var(--b1)',borderRadius:9,padding:12,marginTop:8}}>
@@ -775,14 +809,39 @@ export default function Dashboard() {
             </div>
           </Card>
           <Card>
+            <CardHd title="Photos de la galerie" action="+ Ajouter" onAction={()=>document.getElementById('photo-upload-input')?.click()} />
+            <input id="photo-upload-input" type="file" accept="image/*" multiple style={{display:'none'}} onChange={async e=>{
+              const files=Array.from(e.target.files||[])
+              for(const file of files){
+                const fd=new FormData(); fd.append('file',file); fd.append('type','photo')
+                const res=await fetch('/api/storage/upload',{method:'POST',headers:{Authorization:`Bearer ${tokenRef.current}`},body:fd})
+                if(!res.ok){const j=await res.json();addToast('❌ '+j.error+' — Créez le bucket "salon-photos" dans Supabase Storage');break}
+              }
+              addToast(`✅ ${files.length} photo${files.length>1?'s':''} ajoutée${files.length>1?'s':''}`)
+              e.target.value=''
+            }} />
+            <div style={{fontSize:12,color:'var(--t3)',textAlign:'center' as const,padding:'16px 0'}}>
+              Photos visibles sur votre page de réservation.<br/>
+              <span style={{fontSize:11}}>Cliquez "+ Ajouter" pour uploader.</span>
+            </div>
+          </Card>
+          <Card>
             <CardHd title="Votre lien de réservation" />
-            <div style={{background:'var(--s1)',border:'1px solid var(--b1)',borderRadius:9,padding:'10px 12px',marginBottom:12}}>
-              <div style={{fontSize:13,fontWeight:600,wordBreak:'break-all' as const}}>{typeof window!=='undefined'?window.location.origin:''}/book/{salon?.slug}</div>
-            </div>
-            <div style={{display:'flex',gap:6}}>
-              <Btn ghost onClick={()=>{navigator.clipboard?.writeText(`${typeof window!=='undefined'?window.location.origin:''}/book/${salon?.slug}`).catch(()=>{});addToast('📋 Lien copié !')}}>Copier</Btn>
-              <Btn onClick={()=>window.open(`/book/${salon?.slug}`,'_blank')}>Voir la page ↗</Btn>
-            </div>
+            {(() => {
+              const base = salon?.custom_domain ? `https://${salon.custom_domain}` : (process.env.NEXT_PUBLIC_APP_URL||'https://coiffpro.fr')
+              const fullUrl = `${base}/book/${salon?.slug}`
+              const display = `coiffpro.fr/${salon?.slug}`
+              return <>
+                <div style={{background:'var(--s1)',border:'1px solid var(--b1)',borderRadius:9,padding:'10px 14px',marginBottom:12}}>
+                  <div style={{fontSize:11,color:'var(--t3)',marginBottom:3}}>Votre lien de réservation</div>
+                  <div style={{fontSize:14,fontWeight:700,color:'var(--t1)'}}>coiffpro.fr/<span style={{color:'var(--gold)'}}>{salon?.slug}</span></div>
+                </div>
+                <div style={{display:'flex',gap:6}}>
+                  <Btn ghost onClick={()=>{navigator.clipboard?.writeText(fullUrl).catch(()=>{});addToast('📋 Lien copié !')}}>Copier</Btn>
+                  <Btn onClick={()=>window.open(`/book/${salon?.slug}`,'_blank')}>Voir la page ↗</Btn>
+                </div>
+              </>
+            })()}
           </Card>
         </div>
       </div>
@@ -821,7 +880,14 @@ export default function Dashboard() {
               <div style={{display:'flex',justifyContent:'space-between',fontSize:13}}><span style={{color:'var(--t2)'}}>Statut</span><span className="badge badge-ok">{salon?.status==='trial'?'Essai gratuit':'Actif'}</span></div>
               {salon?.status==='trial'&&<div style={{fontSize:11,color:'var(--t3)',marginTop:6}}>Essai jusqu'au {new Date(salon.trial_ends_at||'').toLocaleDateString('fr-FR')}</div>}
             </div>
-            <Btn onClick={()=>addToast('💳 Portail Stripe ouvert')}>Gérer mon abonnement →</Btn>
+            <Btn onClick={async ()=>{
+              if(!salon?.stripe_customer_id){addToast('⚠ Aucun abonnement Stripe actif');return}
+              addToast('⏳ Ouverture du portail…')
+              const res=await fetch('/api/stripe/portal',{method:'POST',headers:{Authorization:`Bearer ${tokenRef.current}`}})
+              const j=await res.json()
+              if(j.url) window.open(j.url,'_blank')
+              else addToast('❌ '+j.error)
+            }}>Gérer mon abonnement →</Btn>
           </Card>
         </div>
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
@@ -871,16 +937,46 @@ export default function Dashboard() {
   }
 
   function PageRappels() {
-    const items=[{l:'SMS 24h avant le RDV',d:'Expéditeur = votre salon',on:true},{l:'Confirmation immédiate',d:'Dès la réservation en ligne',on:true},{l:'Lien avis Google post-RDV',d:'2h après RDV terminé',on:true},{l:'SMS fidélité 10ème visite',d:'🎁 Produit offert automatique',on:true},{l:'Relance clients inactifs 30j',d:'Vous nous manquez !',on:false}]
-    return <Card style={{maxWidth:540}}>
-      <CardHd title="Automatisations SMS" />
-      {items.map((it,i)=>(
-        <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'11px 0',borderBottom:'1px solid var(--b1)'}}>
-          <div><div style={{fontSize:13,fontWeight:500}}>{it.l}</div><div style={{fontSize:11,color:'var(--t3)',marginTop:2}}>{it.d}</div></div>
-          <Tgl on={it.on} />
-        </div>
-      ))}
-    </Card>
+    const defaults = {reminder_24h:true,confirmation:true,review_request:true,loyalty:true,reactivation:false}
+    const [settings, setSettings] = useState<Record<string,boolean>>(salon?.notification_settings||defaults)
+    const [saving, setSaving] = useState<string|null>(null)
+
+    const toggle = async (key: string) => {
+      const next = {...settings,[key]:!settings[key]}
+      setSettings(next)
+      setSaving(key)
+      try {
+        await write('update_salon',{data:{notification_settings:next}})
+        setSalon(s=>s?{...s,notification_settings:next}:s)
+        addToast(`✅ ${next[key]?'Activé':'Désactivé'}`)
+      } catch(e:any){ addToast('❌ '+e.message); setSettings(settings) }
+      setSaving(null)
+    }
+
+    const items=[
+      {key:'reminder_24h',l:'Rappel SMS 24h avant le RDV',d:'Envoyé automatiquement la veille'},
+      {key:'confirmation',l:'Confirmation de réservation',d:'Dès la réservation en ligne'},
+      {key:'review_request',l:'Demande d\'avis Google',d:'2h après RDV terminé'},
+      {key:'loyalty',l:'SMS fidélité 10ème visite',d:'🎁 Cadeau offert automatiquement'},
+      {key:'reactivation',l:'Relance clients inactifs 30j',d:'"Vous nous manquez !" automatique'},
+    ]
+    return <>
+      <Card style={{maxWidth:540}}>
+        <CardHd title="Automatisations SMS" />
+        {items.map(it=>(
+          <div key={it.key} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 0',borderBottom:'1px solid var(--b1)'}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:500}}>{it.l}</div>
+              <div style={{fontSize:11,color:'var(--t3)',marginTop:2}}>{it.d}</div>
+            </div>
+            <Tgl on={!!settings[it.key]} onChange={()=>toggle(it.key)} />
+          </div>
+        ))}
+      </Card>
+      <div style={{marginTop:10,fontSize:11,color:'var(--t3)',maxWidth:540}}>
+        Les SMS sont envoyés via Octopush. Assurez-vous d'avoir un compte configuré et des crédits disponibles.
+      </div>
+    </>
   }
 
   function PageAvis() {
@@ -1231,7 +1327,10 @@ export default function Dashboard() {
             {sidebarOpen?<><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>:<><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></>}
           </svg>
         </button>
-        <span style={{fontFamily:'Georgia,serif',fontSize:18,fontWeight:700}}>✂ CoiffPro</span>
+        {salon?.logo_url
+          ? <img src={salon.logo_url} alt="logo" style={{height:28,maxWidth:80,objectFit:'contain',filter:theme==='dark'?'brightness(0) invert(1)':'none'}} />
+          : <span style={{fontFamily:'Georgia,serif',fontSize:18,fontWeight:700}}>✂ CoiffPro</span>
+        }
         <span style={{fontSize:11,color:'var(--t2)'}}>{salon?.name}</span>
         <div style={{marginLeft:'auto',display:'flex',gap:8,alignItems:'center'}}>
           <button onClick={()=>setTheme(t=>t==='dark'?'light':'dark')} style={{background:'var(--s2)',border:'1px solid var(--b1)',borderRadius:7,padding:'5px 9px',fontSize:11,cursor:'pointer',color:'var(--t1)'}}>{theme==='dark'?'☀':'🌙'}</button>
