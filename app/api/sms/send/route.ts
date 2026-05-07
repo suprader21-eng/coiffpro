@@ -1,6 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
 import { sendReviewRequest, sendLoyaltyReward, sendCampaign, sendReactivation } from '@/lib/sms'
+
+async function getSalonFromToken(req: NextRequest) {
+  const token = req.headers.get('authorization')?.replace('Bearer ', '')
+  if (!token) return null
+  const userClient = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+  const { data: { user } } = await userClient.auth.getUser(token)
+  if (!user) return null
+  const db = getSupabaseAdmin()
+  const { data: salon } = await db.from('salons').select('id').eq('email', user.email!).single()
+  return salon
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -89,27 +104,71 @@ export async function POST(req: NextRequest) {
 
     // ── Campagne SMS ──
     if (type === 'campaign' && campaignId) {
+      // Vérifier l'authentification du salon
+      const authSalon = await getSalonFromToken(req)
+
       const { data: campaign } = await db.from('sms_campaigns')
-        .select('*, salon:salons(name)').eq('id', campaignId).single()
+        .select('*, salon:salons(id,name)').eq('id', campaignId).single()
       if (!campaign) return NextResponse.json({ error: 'Campagne introuvable' }, { status: 404 })
 
-      const { data: clients } = await db.from('clients')
-        .select('phone').eq('salon_id', campaign.salon_id)
-      if (!clients?.length) return NextResponse.json({ message: 'Aucun client' })
+      // Vérifier que la campagne appartient bien au salon authentifié
+      if (authSalon && campaign.salon_id !== authSalon.id) {
+        return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
+      }
 
-      const result = await sendCampaign({
-        phones: clients.map(c => c.phone),
-        message: campaign.message,
-        salonName: campaign.salon.name,
-      })
+      if (campaign.status === 'sent') {
+        return NextResponse.json({ error: 'Campagne déjà envoyée' }, { status: 400 })
+      }
+
+      const { data: clients } = await db.from('clients')
+        .select('name, phone').eq('salon_id', campaign.salon_id)
+      if (!clients?.length) return NextResponse.json({ message: 'Aucun client', sent: 0, total: 0 })
+
+      const salonName: string = (campaign.salon as any).name || 'votre salon'
+
+      // Personnalisation du message par client
+      const OCTOPUSH_API = 'https://api.octopush.com/v1/public'
+      const senderName = salonName.slice(0, 11).replace(/\s+/g, '')
+      const chunks: { name: string; phone: string }[][] = []
+      for (let i = 0; i < clients.length; i += 100) chunks.push(clients.slice(i, i + 100))
+
+      let sent = 0, failed = 0
+      for (const chunk of chunks) {
+        for (const client of chunk) {
+          const firstName = client.name.split(' ')[0] || client.name
+          const personalised = campaign.message
+            .replace(/\{prénom\}/gi, firstName)
+            .replace(/\{prenom\}/gi, firstName)
+            .replace(/\{salon\}/gi, salonName)
+          try {
+            const res = await fetch(`${OCTOPUSH_API}/sms-campaign/send`, {
+              method: 'POST',
+              headers: {
+                'api-login': process.env.OCTOPUSH_API_LOGIN!,
+                'api-key': process.env.OCTOPUSH_API_KEY!,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                recipients: [{ phone_number: formatPhone(client.phone) }],
+                text: personalised + '\nSTOP 36xxx',
+                type: 'sms_premium',
+                sender: senderName,
+                purpose: 'marketing',
+              }),
+            })
+            if (res.ok) sent++; else failed++
+          } catch { failed++ }
+        }
+        if (chunks.length > 1) await new Promise(r => setTimeout(r, 100))
+      }
 
       await db.from('sms_campaigns').update({
         status: 'sent',
         sent_at: new Date().toISOString(),
-        recipients_count: result.sent,
+        recipients_count: sent,
       }).eq('id', campaignId)
 
-      return NextResponse.json({ success: true, sent: result.sent, total: result.total })
+      return NextResponse.json({ success: true, sent, failed, total: clients.length })
     }
 
     return NextResponse.json({ error: 'Type SMS invalide' }, { status: 400 })
@@ -118,4 +177,12 @@ export async function POST(req: NextRequest) {
     console.error('SMS send error:', err)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
+}
+
+function formatPhone(phone: string): string {
+  const clean = phone.replace(/[\s.\-]/g, '')
+  if (clean.startsWith('0'))  return '+33' + clean.slice(1)
+  if (clean.startsWith('+'))  return clean
+  if (clean.startsWith('33')) return '+' + clean
+  return '+33' + clean
 }

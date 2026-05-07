@@ -10,6 +10,7 @@ type Service = { id:string; name:string; category:string; duration_minutes:numbe
 type Client = { id:string; name:string; phone:string; email:string; visit_count:number; total_spent_cents:number; loyalty_points:number; gift_available:boolean; last_visit_at:string; notes:string }
 type Appointment = { id:string; scheduled_at:string; status:string; price_cents:number; final_price_cents:number; paid:boolean; payment_method:string; client:Client|null; service:Service|null; employee:Employee|null }
 type Product = { id:string; salon_id:string; reference:string; name:string; brand:string; category:string; stock_quantity:number; stock_alert:number; purchase_price_cents:number; sale_price_cents:number; is_active:boolean }
+type Campaign = { id:string; name:string; message:string; status:string; recipients_count:number|null; sent_at:string|null; created_at:string }
 
 /* ─── Helpers ─── */
 const ini = (n:string) => n?.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) || '?'
@@ -103,6 +104,7 @@ export default function Dashboard() {
   const [products, setProducts] = useState<Product[]>([])
   const [payModal, setPayModal] = useState<Appointment|null>(null)
   const [supportMsgs, setSupportMsgs] = useState<{id:string;from_admin:boolean;message:string;created_at:string;read_at:string|null}[]>([])
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState('')
   const [theme, setTheme] = useState('light')
@@ -142,19 +144,21 @@ export default function Dashboard() {
       }
       setSalon(salonData)
 
-      const [emps, svcs, cls, appts, prods] = await Promise.all([
+      const [emps, svcs, cls, appts, prods, cmpgns] = await Promise.all([
         sb.from('employees').select('*').eq('salon_id', salonData!.id).order('sort_order'),
         sb.from('services').select('*').eq('salon_id', salonData!.id).order('sort_order'),
         sb.from('clients').select('*').eq('salon_id', salonData!.id).order('created_at',{ascending:false}),
         sb.from('appointments').select('*, client:clients(name,phone), service:services(name,price_cents), employee:employees(name,color)')
           .eq('salon_id', salonData!.id).order('scheduled_at',{ascending:true}).limit(200),
         sb.from('products').select('*').eq('salon_id', salonData!.id).order('created_at',{ascending:false}).then(r=>r),
+        sb.from('sms_campaigns').select('*').eq('salon_id', salonData!.id).order('created_at',{ascending:false}),
       ])
       setEmployees(emps.data || [])
       setServices(svcs.data || [])
       setClients(cls.data || [])
       setAppointments(appts.data || [])
       setProducts(prods.data || [])
+      setCampaigns(cmpgns.data || [])
       // Load support messages
       fetch('/api/support', { headers: { Authorization: `Bearer ${session.access_token}` } })
         .then(r => r.json()).then(j => setSupportMsgs(j.messages || [])).catch(()=>{})
@@ -1000,16 +1004,147 @@ export default function Dashboard() {
   }
 
   function PageMarketing() {
+    const [showModal, setShowModal] = useState(false)
+    const [campName, setCampName] = useState('')
+    const [campMsg, setCampMsg] = useState('')
+    const [sending, setSending] = useState(false)
+    const [sendingId, setSendingId] = useState<string|null>(null)
+
+    const SMS_MAX = 160
+    const charCount = campMsg.length
+    const smsCount = Math.ceil(charCount / SMS_MAX) || 1
+    const costEur = (clients.length * smsCount * 0.06).toFixed(2)
+
+    function insertVar(v:string) { setCampMsg(m => m + v) }
+
+    async function createCampaign() {
+      if (!campName.trim() || !campMsg.trim()) { addToast('⚠️ Remplissez le nom et le message'); return }
+      setSending(true)
+      try {
+        const res = await write('create_campaign', { data: { name: campName.trim(), message: campMsg.trim() } })
+        const newCamp = res.data as Campaign
+        setCampaigns(prev => [newCamp, ...prev])
+        setCampName(''); setCampMsg(''); setShowModal(false)
+        addToast('✅ Campagne créée !')
+      } catch(e:any) { addToast('❌ ' + e.message) }
+      setSending(false)
+    }
+
+    async function sendCampaign(c: Campaign) {
+      if (!confirm(`Envoyer "${c.name}" à ${clients.length} clients ? Coût estimé : ~${(clients.length * 0.06).toFixed(2)}€`)) return
+      setSendingId(c.id)
+      try {
+        const res = await fetch('/api/sms/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenRef.current}` },
+          body: JSON.stringify({ type: 'campaign', campaignId: c.id }),
+        })
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error || 'Erreur')
+        setCampaigns(prev => prev.map(x => x.id === c.id ? { ...x, status: 'sent', sent_at: new Date().toISOString(), recipients_count: json.sent } : x))
+        addToast(`✅ ${json.sent} SMS envoyés !`)
+      } catch(e:any) { addToast('❌ ' + e.message) }
+      setSendingId(null)
+    }
+
+    async function deleteCampaign(c: Campaign) {
+      if (!confirm(`Supprimer la campagne "${c.name}" ?`)) return
+      try {
+        await write('delete_campaign', { id: c.id })
+        setCampaigns(prev => prev.filter(x => x.id !== c.id))
+        addToast('🗑️ Campagne supprimée')
+      } catch(e:any) { addToast('❌ ' + e.message) }
+    }
+
+    const sentThisMonth = campaigns.filter(c => c.sent_at && new Date(c.sent_at).getMonth() === new Date().getMonth())
+    const smsSentMonth = sentThisMonth.reduce((s,c) => s + (c.recipients_count || 0), 0)
+
     return <>
       <div className="g3" style={{marginBottom:12}}>
-        <SC label="Clients SMS" value={clients.length} sub="actifs" />
-        <SC label="SMS ce mois" value="0" sub="automatiques" />
-        <SC label="Taux ouverture" value="91%" sub="SMS France" />
+        <SC label="Clients SMS" value={clients.length} sub="dans votre base" />
+        <SC label="SMS ce mois" value={smsSentMonth} sub="envoyés" />
+        <SC label="Campagnes" value={campaigns.length} sub="créées" />
       </div>
+
       <Card>
-        <CardHd title="Campagnes SMS" action="+ Nouvelle campagne" onAction={()=>addToast('📨 Bientôt disponible')} />
-        <div style={{textAlign:'center',padding:'24px 0',color:'var(--t3)',fontSize:13}}><div style={{fontSize:32,marginBottom:8}}>📨</div>Vos campagnes SMS apparaîtront ici.</div>
+        <CardHd title="Campagnes SMS" action="+ Nouvelle campagne" onAction={()=>setShowModal(true)} />
+        {campaigns.length === 0
+          ? <div style={{textAlign:'center',padding:'32px 0',color:'var(--t3)',fontSize:13}}>
+              <div style={{fontSize:36,marginBottom:8}}>📨</div>
+              <div style={{marginBottom:12}}>Aucune campagne pour l'instant.</div>
+              <Btn onClick={()=>setShowModal(true)}>+ Créer une campagne</Btn>
+            </div>
+          : <div style={{display:'flex',flexDirection:'column',gap:8,marginTop:8}}>
+              {campaigns.map(c => (
+                <div key={c.id} style={{border:'1px solid var(--bd)',borderRadius:10,padding:'12px 14px',display:'flex',alignItems:'center',gap:12}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:600,fontSize:13,marginBottom:2}}>{c.name}</div>
+                    <div style={{fontSize:11,color:'var(--t3)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.message}</div>
+                    <div style={{fontSize:10,color:'var(--t3)',marginTop:4}}>
+                      {c.status === 'sent'
+                        ? `✅ Envoyée le ${new Date(c.sent_at!).toLocaleDateString('fr-FR')} · ${c.recipients_count} destinataires`
+                        : '⏳ Brouillon'}
+                    </div>
+                  </div>
+                  <div style={{display:'flex',gap:6,flexShrink:0}}>
+                    {c.status !== 'sent' && (
+                      <Btn onClick={()=>sendCampaign(c)} disabled={sendingId===c.id} style={{fontSize:11,padding:'5px 10px'}}>
+                        {sendingId===c.id ? '…' : '▶ Envoyer'}
+                      </Btn>
+                    )}
+                    <Btn ghost danger onClick={()=>deleteCampaign(c)} style={{fontSize:11,padding:'5px 10px'}}>🗑</Btn>
+                  </div>
+                </div>
+              ))}
+            </div>
+        }
       </Card>
+
+      {showModal && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.45)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
+          <div style={{background:'var(--card)',borderRadius:16,padding:24,width:'100%',maxWidth:480,boxShadow:'0 8px 40px rgba(0,0,0,.18)'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+              <div style={{fontWeight:700,fontSize:16}}>📨 Nouvelle campagne SMS</div>
+              <span onClick={()=>setShowModal(false)} style={{cursor:'pointer',fontSize:20,color:'var(--t3)'}}>✕</span>
+            </div>
+
+            <FRow label="Nom de la campagne">
+              <Inp placeholder="Ex : Promo été 2025" value={campName} onChange={setCampName} />
+            </FRow>
+
+            <FRow label="Message SMS">
+              <div style={{marginBottom:6,display:'flex',gap:6,flexWrap:'wrap' as const}}>
+                {['{prénom}','{salon}'].map(v => (
+                  <span key={v} onClick={()=>insertVar(v)} style={{fontSize:10,padding:'2px 8px',border:'1px solid var(--accent)',borderRadius:20,color:'var(--accent)',cursor:'pointer'}}>{v}</span>
+                ))}
+              </div>
+              <textarea
+                value={campMsg}
+                onChange={e=>setCampMsg(e.target.value)}
+                placeholder="Bonjour {prénom}, profitez de -20% ce mois-ci chez {salon} ! À bientôt 🎉"
+                rows={4}
+                className="input"
+                style={{resize:'vertical',minHeight:90,fontFamily:'inherit',fontSize:13}}
+              />
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:charCount>SMS_MAX*smsCount?'var(--red)':'var(--t3)',marginTop:4}}>
+                <span>{charCount} caractères · {smsCount} SMS</span>
+                <span>~{costEur}€ pour {clients.length} clients</span>
+              </div>
+            </FRow>
+
+            <div style={{background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:10,padding:10,marginBottom:16,fontSize:11,color:'var(--t2)'}}>
+              💡 <strong>{clients.length} clients</strong> recevront ce SMS. Les variables <code>{'{prénom}'}</code> et <code>{'{salon}'}</code> seront remplacées automatiquement.
+            </div>
+
+            <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+              <Btn ghost onClick={()=>setShowModal(false)}>Annuler</Btn>
+              <Btn onClick={createCampaign} disabled={sending}>
+                {sending ? 'Création…' : 'Créer la campagne'}
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   }
 

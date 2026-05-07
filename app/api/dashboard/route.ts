@@ -126,6 +126,25 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true })
       }
 
+      /* ── CAMPAGNES SMS ── */
+      case 'create_campaign': {
+        const { data: row, error } = await admin.from('sms_campaigns').insert({
+          salon_id: salon.id,
+          name: data.name,
+          message: data.message,
+          status: 'draft',
+          recipients_count: null,
+          sent_at: null,
+        }).select().single()
+        if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+        return NextResponse.json({ data: row })
+      }
+      case 'delete_campaign': {
+        const { error } = await admin.from('sms_campaigns').delete().eq('id', id).eq('salon_id', salon.id)
+        if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+        return NextResponse.json({ ok: true })
+      }
+
       default:
         return NextResponse.json({ error: 'Action inconnue: ' + action }, { status: 400 })
     }
