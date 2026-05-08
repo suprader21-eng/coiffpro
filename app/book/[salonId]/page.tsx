@@ -128,31 +128,25 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
     }
   }
 
-  /* Load salon data */
+  /* Load salon data — via API route (service role, bypass RLS, works sans auth) */
   useEffect(()=>{
     async function load() {
-      const { data: s } = await sb.from('salons').select('*').eq('slug', params.salonId).single()
-      if (!s) { setNotFound(true); setLoading(false); return }
-      setSalon(s)
-
-      const [emps, svcs, hrs, pics, revs] = await Promise.all([
-        sb.from('employees').select('*').eq('salon_id', s.id).eq('is_active', true).order('sort_order'),
-        sb.from('services').select('*').eq('salon_id', s.id).eq('is_active', true).order('sort_order'),
-        sb.from('salon_hours').select('*').eq('salon_id', s.id).order('day_index'),
-        sb.from('salon_photos').select('*').eq('salon_id', s.id).order('sort_order'),
-        sb.from('reviews').select('*, client:clients(name), employee:employees(name)').eq('salon_id', s.id).order('created_at', {ascending:false}).limit(6),
-      ])
-      setEmployees(emps.data || [])
-      setServices(svcs.data || [])
-      setHours(hrs.data || [])
-      setPhotos(pics.data || [])
-      setReviews(revs.data || [])
+      const res = await fetch(`/api/book/salon?slug=${encodeURIComponent(params.salonId)}`)
+      if (!res.ok) { setNotFound(true); setLoading(false); return }
+      const json = await res.json()
+      if (!json.salon) { setNotFound(true); setLoading(false); return }
+      setSalon(json.salon)
+      setEmployees(json.employees)
+      setServices(json.services)
+      setHours(json.hours)
+      setPhotos(json.photos)
+      setReviews(json.reviews)
       setLoading(false)
     }
     load()
   }, [params.salonId])
 
-  /* Load slots for selected date + employee */
+  /* Load slots for selected date + employee — via API (bypass RLS) */
   useEffect(()=>{
     if (!selEmp || !salon) return
     async function loadSlots() {
@@ -160,18 +154,15 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
       const date = addDays(new Date(), selDate+1)
       const dayStart = new Date(date); dayStart.setHours(0,0,0,0)
       const dayEnd   = new Date(date); dayEnd.setHours(23,59,59,999)
-      const { data: appts } = await sb.from('appointments')
-        .select('scheduled_at, duration_minutes')
-        .eq('salon_id', salon.id)
-        .eq('employee_id', selEmp.id)
-        .in('status', ['confirmed','pending'])
-        .gte('scheduled_at', dayStart.toISOString())
-        .lte('scheduled_at', dayEnd.toISOString())
-
-      const takenTimes = (appts||[]).map(a=>
-        new Date(a.scheduled_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
-      )
-      setSlots(ALL_SLOTS.map(sl=>({ sl, taken: takenTimes.includes(sl) })))
+      const params = new URLSearchParams({
+        salonId: salon.id,
+        employeeId: selEmp!.id,
+        from: dayStart.toISOString(),
+        to:   dayEnd.toISOString(),
+      })
+      const res = await fetch(`/api/book/slots?${params}`)
+      const json = res.ok ? await res.json() : { takenTimes: [] }
+      setSlots(ALL_SLOTS.map(sl=>({ sl, taken: (json.takenTimes||[]).includes(sl) })))
     }
     loadSlots()
   }, [selEmp, selDate, salon])
