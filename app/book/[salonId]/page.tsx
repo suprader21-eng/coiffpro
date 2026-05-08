@@ -40,8 +40,18 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
   const [loading, setLoading]     = useState(true)
   const [notFound, setNotFound]   = useState(false)
 
+  /* Client auth state */
+  const [clientUser, setClientUser]   = useState<any>(null)
+  const [clientRecord, setClientRecord] = useState<any>(null)
+  const [clientAppts, setClientAppts] = useState<any[]>([])
+  const [authView, setAuthView]       = useState<'choice'|'otp'|'verify'|null>(null)
+  const [otpEmail, setOtpEmail]       = useState('')
+  const [otpCode, setOtpCode]         = useState('')
+  const [otpSending, setOtpSending]   = useState(false)
+  const [otpError, setOtpError]       = useState('')
+
   /* Booking state */
-  const [view, setView]         = useState<'page'|'booking'>('page')
+  const [view, setView]         = useState<'page'|'booking'|'account'>('page')
   const [step, setStep]         = useState(1)
   const [selSvc, setSelSvc]     = useState<Service|null>(null)
   const [selEmp, setSelEmp]     = useState<Employee|null>(null)
@@ -53,6 +63,70 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
   const [mounted, setMounted]   = useState(false)
 
   useEffect(()=>{ setMounted(true) },[])
+
+  // Vérifier si le client est déjà connecté
+  useEffect(()=>{
+    sb.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setClientUser(session.user)
+        fetchClientData(session.access_token)
+      }
+    })
+    const { data: listener } = sb.auth.onAuthStateChange((_e, session) => {
+      setClientUser(session?.user || null)
+      if (session?.user) fetchClientData(session.access_token)
+      else { setClientRecord(null); setClientAppts([]) }
+    })
+    return () => listener.subscription.unsubscribe()
+  }, [])
+
+  async function fetchClientData(token: string) {
+    const res = await fetch('/api/client/me', { headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) {
+      const j = await res.json()
+      setClientRecord(j.client)
+      setClientAppts(j.appointments || [])
+    }
+  }
+
+  async function sendOtp() {
+    if (!otpEmail.includes('@')) { setOtpError('Email invalide'); return }
+    setOtpSending(true); setOtpError('')
+    const { error } = await sb.auth.signInWithOtp({ email: otpEmail, options: { shouldCreateUser: true } })
+    setOtpSending(false)
+    if (error) { setOtpError(error.message); return }
+    setAuthView('verify')
+  }
+
+  async function verifyOtp() {
+    setOtpSending(true); setOtpError('')
+    const { data, error } = await sb.auth.verifyOtp({ email: otpEmail, token: otpCode, type: 'email' })
+    setOtpSending(false)
+    if (error) { setOtpError('Code incorrect, réessayez'); return }
+    setClientUser(data.user)
+    setAuthView(null)
+    if (data.session) fetchClientData(data.session.access_token)
+  }
+
+  async function signOut() {
+    await sb.auth.signOut()
+    setClientUser(null); setClientRecord(null); setClientAppts([])
+  }
+
+  async function cancelAppt(id: string) {
+    const { data: { session } } = await sb.auth.getSession()
+    if (!session) return
+    const res = await fetch('/api/client/me', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ action: 'cancel', appointmentId: id }),
+    })
+    if (res.ok) {
+      setClientAppts(prev => prev.map(a => a.id === id ? { ...a, status: 'cancelled' } : a))
+    } else {
+      const j = await res.json(); alert(j.error)
+    }
+  }
 
   /* Load salon data */
   useEffect(()=>{
@@ -119,13 +193,26 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
           firstName: form.firstName,
           lastName: form.lastName,
           phone: form.phone,
-          email: form.email,
+          email: form.email || clientUser?.email || '',
           note: form.note,
         })
       })
       const data = await res.json()
-      if (data.success) setStep(5)
-      else alert(data.error || 'Erreur lors de la réservation')
+      if (data.success) {
+        setStep(5)
+        // Lier le compte si connecté
+        if (clientUser && form.phone) {
+          const { data: { session } } = await sb.auth.getSession()
+          if (session) {
+            const r = await fetch('/api/client/me', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+              body: JSON.stringify({ action: 'link_account', phone: form.phone, salonId: salon.id, name: `${form.firstName} ${form.lastName}`.trim() }),
+            })
+            if (r.ok) { const j = await r.json(); setClientRecord(j.client); fetchClientData(session.access_token) }
+          }
+        }
+      } else alert(data.error || 'Erreur lors de la réservation')
     } finally { setSubmitting(false) }
   }
 
@@ -164,6 +251,162 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
 
   if (!salon) return null
 
+  /* ══ AUTH MODAL ══ */
+  const AuthModal = authView ? (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:300,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+      <div style={{background:'#fff',borderRadius:20,padding:28,width:'100%',maxWidth:380,fontFamily:"'Outfit',system-ui,sans-serif",boxShadow:'0 12px 40px rgba(0,0,0,.15)'}}>
+        {authView === 'choice' && <>
+          <div style={{textAlign:'center',marginBottom:20}}>
+            <div style={{fontSize:28,marginBottom:8}}>👤</div>
+            <div style={{fontSize:18,fontWeight:700,marginBottom:6}}>Votre espace client</div>
+            <div style={{fontSize:13,color:'#888',lineHeight:1.5}}>Connectez-vous pour retrouver vos anciens RDV et réserver plus vite.</div>
+          </div>
+          <button onClick={()=>setAuthView('otp')}
+            style={{width:'100%',background:T,color:'#fff',border:'none',borderRadius:11,padding:'13px',fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:'inherit',marginBottom:10}}>
+            Se connecter / Créer un compte
+          </button>
+          <button onClick={()=>setAuthView(null)}
+            style={{width:'100%',background:'#f5f5f5',color:'#555',border:'none',borderRadius:11,padding:'13px',fontSize:13,cursor:'pointer',fontFamily:'inherit'}}>
+            Continuer sans compte
+          </button>
+        </>}
+        {authView === 'otp' && <>
+          <button onClick={()=>setAuthView('choice')} style={{background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:12,fontFamily:'inherit',marginBottom:14,padding:0}}>← Retour</button>
+          <div style={{fontSize:17,fontWeight:700,marginBottom:6}}>Votre email</div>
+          <div style={{fontSize:12,color:'#888',marginBottom:16}}>Nous vous enverrons un code à 6 chiffres pour vous connecter.</div>
+          <input value={otpEmail} onChange={e=>{setOtpEmail(e.target.value);setOtpError('')}}
+            placeholder="votre@email.fr" type="email"
+            style={{width:'100%',border:'1.5px solid #e8e8e8',borderRadius:10,padding:'12px 14px',fontSize:14,fontFamily:'inherit',outline:'none',marginBottom:10}}
+            onKeyDown={e=>e.key==='Enter'&&sendOtp()}
+          />
+          {otpError&&<div style={{fontSize:11,color:'#e53e3e',marginBottom:8}}>{otpError}</div>}
+          <button onClick={sendOtp} disabled={otpSending}
+            style={{width:'100%',background:T,color:'#fff',border:'none',borderRadius:11,padding:'13px',fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:'inherit',opacity:otpSending?.6:1}}>
+            {otpSending ? 'Envoi…' : 'Envoyer le code →'}
+          </button>
+        </>}
+        {authView === 'verify' && <>
+          <div style={{fontSize:17,fontWeight:700,marginBottom:6}}>Code reçu ?</div>
+          <div style={{fontSize:12,color:'#888',marginBottom:16}}>Entrez le code à 6 chiffres envoyé à <strong>{otpEmail}</strong>.</div>
+          <input value={otpCode} onChange={e=>{setOtpCode(e.target.value.replace(/\D/g,'').slice(0,6));setOtpError('')}}
+            placeholder="123456" type="text" inputMode="numeric" maxLength={6}
+            style={{width:'100%',border:'1.5px solid #e8e8e8',borderRadius:10,padding:'12px 14px',fontSize:22,fontFamily:'monospace',outline:'none',marginBottom:10,textAlign:'center',letterSpacing:'0.3em'}}
+            onKeyDown={e=>e.key==='Enter'&&verifyOtp()}
+          />
+          {otpError&&<div style={{fontSize:11,color:'#e53e3e',marginBottom:8}}>{otpError}</div>}
+          <button onClick={verifyOtp} disabled={otpSending||otpCode.length<6}
+            style={{width:'100%',background:T,color:'#fff',border:'none',borderRadius:11,padding:'13px',fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:'inherit',opacity:(otpSending||otpCode.length<6)?.5:1}}>
+            {otpSending ? 'Vérification…' : 'Confirmer →'}
+          </button>
+          <button onClick={()=>setAuthView('otp')} style={{width:'100%',background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:12,fontFamily:'inherit',marginTop:10}}>
+            Renvoyer le code
+          </button>
+        </>}
+      </div>
+    </div>
+  ) : null
+
+  /* ══ COMPTE CLIENT ══ */
+  if (view === 'account') {
+    const upcoming = clientAppts.filter(a => new Date(a.scheduled_at) > new Date() && a.status !== 'cancelled')
+    const past = clientAppts.filter(a => new Date(a.scheduled_at) <= new Date() || a.status === 'cancelled')
+    return (
+      <div style={{minHeight:'100vh',background:'#fff',fontFamily:"'Outfit',system-ui,sans-serif"}}>
+        <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Outfit:wght@400;500;600&display=swap');*{box-sizing:border-box;margin:0;padding:0}`}</style>
+        {AuthModal}
+        <div style={{position:'sticky',top:0,zIndex:50,background:'#fff',borderBottom:'1px solid #f0f0f0',height:54,display:'flex',alignItems:'center',padding:'0 20px',gap:12}}>
+          <button onClick={()=>setView('page')} style={{background:'none',border:'none',cursor:'pointer',color:'#888',display:'flex',alignItems:'center',gap:6,fontSize:13,fontFamily:'inherit'}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>Retour
+          </button>
+          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:700,flex:1,textAlign:'center'}}>Mon espace</div>
+          <button onClick={signOut} style={{background:'none',border:'1px solid #f0f0f0',borderRadius:8,padding:'5px 10px',fontSize:11,cursor:'pointer',color:'#888',fontFamily:'inherit'}}>Déconnexion</button>
+        </div>
+        <div style={{maxWidth:560,margin:'0 auto',padding:'24px 20px 60px'}}>
+          <div style={{background:`${T}08`,border:`1px solid ${T}22`,borderRadius:12,padding:'14px 16px',marginBottom:24,display:'flex',alignItems:'center',gap:12}}>
+            <div style={{width:40,height:40,borderRadius:'50%',background:T,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:700,flexShrink:0}}>
+              {(clientRecord?.name||clientUser?.email||'?')[0].toUpperCase()}
+            </div>
+            <div>
+              <div style={{fontSize:14,fontWeight:600}}>{clientRecord?.name||'Mon compte'}</div>
+              <div style={{fontSize:11,color:'#888'}}>{clientUser?.email}</div>
+            </div>
+          </div>
+
+          {/* Prochain RDV */}
+          {upcoming.length > 0 && (
+            <div style={{marginBottom:24}}>
+              <div style={{fontSize:11,fontWeight:700,color:'#bbb',textTransform:'uppercase' as const,letterSpacing:'.08em',marginBottom:10}}>Prochains rendez-vous</div>
+              {upcoming.map((a:any) => {
+                const d = new Date(a.scheduled_at)
+                const canCancel = d.getTime() - Date.now() > 2*3600*1000
+                return (
+                  <div key={a.id} style={{border:'1.5px solid '+T,borderRadius:12,padding:'14px 16px',marginBottom:8,background:`${T}04`}}>
+                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
+                      <div style={{fontSize:14,fontWeight:600}}>{a.service?.name||'RDV'}</div>
+                      <div style={{fontSize:13,fontWeight:700,color:T}}>{a.service?.price_cents?(a.service.price_cents/100).toFixed(0)+'€':''}</div>
+                    </div>
+                    <div style={{fontSize:12,color:'#666',marginBottom:2}}>📅 {d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})} à {d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</div>
+                    {a.employee&&<div style={{fontSize:12,color:'#888',marginBottom:8}}>✂ avec {a.employee.name}</div>}
+                    <div style={{display:'flex',gap:8}}>
+                      <button onClick={()=>{
+                        if(a.service){setSelSvc(a.service)}
+                        if(a.employee){setSelEmp(a.employee)}
+                        setStep(3); setView('booking')
+                      }} style={{flex:1,background:T,color:'#fff',border:'none',borderRadius:9,padding:'9px',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>
+                        🔄 Reprendre ce RDV
+                      </button>
+                      {canCancel&&<button onClick={()=>{if(window.confirm('Annuler ce RDV ?'))cancelAppt(a.id)}}
+                        style={{padding:'9px 14px',background:'#fff',color:'#e53e3e',border:'1px solid #fed7d7',borderRadius:9,fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>
+                        Annuler
+                      </button>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Historique */}
+          <div>
+            <div style={{fontSize:11,fontWeight:700,color:'#bbb',textTransform:'uppercase' as const,letterSpacing:'.08em',marginBottom:10}}>Historique</div>
+            {past.length === 0
+              ? <div style={{textAlign:'center',padding:'28px 0',color:'#ccc',fontSize:13}}>Aucun RDV passé</div>
+              : past.map((a:any) => {
+                  const d = new Date(a.scheduled_at)
+                  const cancelled = a.status === 'cancelled'
+                  return (
+                    <div key={a.id} style={{border:'1px solid #f0f0f0',borderRadius:11,padding:'12px 14px',marginBottom:7,opacity:cancelled?.5:1}}>
+                      <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                        <div style={{fontSize:13,fontWeight:500}}>{a.service?.name||'RDV'}</div>
+                        {cancelled
+                          ? <span style={{fontSize:10,padding:'2px 8px',background:'#fff0f0',color:'#e53e3e',borderRadius:20}}>Annulé</span>
+                          : <span style={{fontSize:10,padding:'2px 8px',background:'#e8f7ee',color:'#1a9648',borderRadius:20}}>Terminé</span>}
+                      </div>
+                      <div style={{fontSize:11,color:'#aaa',marginBottom:cancelled?0:8}}>
+                        {d.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})} · {a.employee?.name||''}
+                      </div>
+                      {!cancelled&&<button onClick={()=>{
+                        if(a.service)setSelSvc(a.service)
+                        if(a.employee)setSelEmp(a.employee)
+                        setStep(3); setView('booking')
+                      }} style={{fontSize:11,color:T,background:'none',border:`1px solid ${T}44`,borderRadius:8,padding:'5px 10px',cursor:'pointer',fontFamily:'inherit'}}>
+                        🔄 Reprendre ce RDV
+                      </button>}
+                    </div>
+                  )
+                })
+            }
+          </div>
+
+          <button onClick={()=>{setStep(1);setView('booking')}}
+            style={{width:'100%',background:T,color:'#fff',border:'none',borderRadius:12,padding:'14px',fontSize:14,fontWeight:700,cursor:'pointer',fontFamily:'inherit',marginTop:20}}>
+            + Nouveau RDV →
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   /* ══ BOOKING FLOW ══ */
   if (view === 'booking') return (
     <div style={{minHeight:'100vh',background:'#fff',fontFamily:"'Outfit',system-ui,sans-serif"}}>
@@ -175,6 +418,7 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
         .fu{animation:fadeUp .3s ease both}
         @keyframes check{to{stroke-dashoffset:0}}
       `}</style>
+      {AuthModal}
 
       {/* Nav */}
       <div style={{position:'sticky',top:0,zIndex:50,background:'#fff',borderBottom:'1px solid #f0f0f0',height:54,display:'flex',alignItems:'center',padding:'0 20px',gap:12}}>
@@ -183,7 +427,10 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
           Retour
         </button>
         <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:700,flex:1,textAlign:'center'}}>✂ {salon.name}</div>
-        <div style={{width:60}}/>
+        {clientUser
+          ? <button onClick={()=>setView('account')} style={{background:`${T}15`,color:T,border:'none',borderRadius:8,padding:'5px 10px',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>👤 Mon compte</button>
+          : <button onClick={()=>setAuthView('choice')} style={{background:'none',border:'1px solid #e8e8e8',borderRadius:8,padding:'5px 10px',fontSize:11,cursor:'pointer',color:'#666',fontFamily:'inherit'}}>Connexion</button>
+        }
       </div>
 
       <div style={{maxWidth:640,margin:'0 auto',padding:'24px 20px 60px'}}>
@@ -319,6 +566,27 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
           <div className="fu">
             <button onClick={()=>setStep(3)} style={{background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:12,fontFamily:'inherit',marginBottom:14,padding:0}}>← Retour</button>
             <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:24,fontWeight:700,marginBottom:16}}>Vos informations</h2>
+            {/* Bandeau compte connecté */}
+            {clientUser && clientRecord && (
+              <div style={{background:'#e8f7ee',border:'1px solid #b8dfc6',borderRadius:10,padding:'10px 14px',marginBottom:14,display:'flex',alignItems:'center',gap:10}}>
+                <div style={{fontSize:18}}>✅</div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:12,fontWeight:600,color:'#1a6640'}}>Connecté en tant que {clientRecord.name}</div>
+                  <div style={{fontSize:11,color:'#2d7a4e'}}>Vos infos sont pré-remplies · <span style={{cursor:'pointer',textDecoration:'underline'}} onClick={()=>{
+                    const parts = (clientRecord.name||'').split(' ')
+                    setForm(f=>({...f, firstName:parts[0]||f.firstName, lastName:parts.slice(1).join(' ')||f.lastName, phone:clientRecord.phone||f.phone, email:clientUser.email||f.email}))
+                  }}>Remplir auto</span></div>
+                </div>
+              </div>
+            )}
+            {!clientUser && (
+              <div style={{background:'#fffbf0',border:'1px solid #e8d898',borderRadius:10,padding:'10px 14px',marginBottom:14,display:'flex',alignItems:'center',gap:10}}>
+                <div style={{fontSize:16}}>👤</div>
+                <div style={{flex:1,fontSize:12,color:'#886600'}}>
+                  <span style={{fontWeight:600}}>Vous avez déjà réservé ?</span> <span style={{cursor:'pointer',textDecoration:'underline'}} onClick={()=>setAuthView('choice')}>Connectez-vous</span> pour pré-remplir vos infos.
+                </div>
+              </div>
+            )}
             <div style={{background:`${T}06`,border:`1px solid ${T}22`,borderRadius:11,padding:'12px 14px',marginBottom:20}}>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
                 {[['📅 Date',dates[selDate]?.full],['⏰ Heure',selSlot],['✂ Prestation',selSvc?.name],['👤 Avec',selEmp?.name||'Premier disponible']].map(([l,v])=>(
@@ -391,9 +659,21 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
                 <a href={salon.google_link} target="_blank" rel="noopener" style={{fontSize:12,color:'#886600',fontWeight:600}}>Laisser un avis maintenant →</a>
               </div>
             )}
+            {!clientUser && (
+              <div style={{background:'#f8f8f8',border:'1px solid #e8e8e8',borderRadius:11,padding:'12px 14px',marginBottom:14,textAlign:'left' as const}}>
+                <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>💡 Créez votre espace client</div>
+                <div style={{fontSize:11,color:'#888',marginBottom:8}}>Retrouvez tous vos RDV, annulez ou reprenez en 1 clic.</div>
+                <button onClick={()=>setAuthView('otp')} style={{fontSize:12,color:T,background:'none',border:`1px solid ${T}`,borderRadius:8,padding:'6px 12px',cursor:'pointer',fontFamily:'inherit',fontWeight:600}}>
+                  Créer mon espace →
+                </button>
+              </div>
+            )}
             <div style={{display:'flex',gap:8,justifyContent:'center'}}>
               <button onClick={()=>{reset();setView('page')}} style={{background:'#fff',color:'#555',border:'1px solid #e8e8e8',borderRadius:10,padding:'11px 18px',fontSize:13,cursor:'pointer',fontFamily:'inherit'}}>Retour au salon</button>
-              <button onClick={()=>{reset();setStep(1)}} style={{background:T,color:'#fff',border:'none',borderRadius:10,padding:'11px 18px',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>Nouveau RDV →</button>
+              {clientUser
+                ? <button onClick={()=>setView('account')} style={{background:T,color:'#fff',border:'none',borderRadius:10,padding:'11px 18px',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>Mon compte →</button>
+                : <button onClick={()=>{reset();setStep(1)}} style={{background:T,color:'#fff',border:'none',borderRadius:10,padding:'11px 18px',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>Nouveau RDV →</button>
+              }
             </div>
           </div>
         )}
@@ -414,6 +694,7 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
         .fi{animation:fi .5s ease both}
         @media(prefers-color-scheme:dark){.salon-logo{filter:brightness(0) invert(1)}}
       `}</style>
+      {AuthModal}
 
       {/* Nav */}
       <nav style={{position:'sticky',top:0,zIndex:50,background:'rgba(255,255,255,.95)',backdropFilter:'blur(12px)',borderBottom:'1px solid #f0f0f0',height:58,display:'flex',alignItems:'center',padding:'0 24px',gap:16}}>
@@ -421,8 +702,12 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
           ? <img src={(salon as any).logo_url} alt={salon.name} style={{height:32,maxWidth:100,objectFit:'contain'}} className="salon-logo" />
           : <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:21,fontWeight:700}}>✂ {salon.name}</div>
         }
-        <div style={{marginLeft:'auto',display:'flex',gap:8}}>
+        <div style={{marginLeft:'auto',display:'flex',gap:8,alignItems:'center'}}>
           {salon.phone&&<a href={`tel:${salon.phone}`} style={{fontSize:12,color:'#666',padding:'6px 12px',border:'1px solid #f0f0f0',borderRadius:8}}>Appeler</a>}
+          {clientUser
+            ? <button onClick={()=>setView('account')} style={{background:`${T}15`,color:T,border:'none',borderRadius:9,padding:'8px 14px',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>👤 Mon compte</button>
+            : <button onClick={()=>setAuthView('choice')} style={{background:'#f5f5f5',color:'#555',border:'none',borderRadius:9,padding:'8px 14px',fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>Connexion</button>
+          }
           <button onClick={()=>setView('booking')} style={{background:T,color:'#fff',border:'none',borderRadius:9,padding:'9px 18px',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>Prendre RDV</button>
         </div>
       </nav>
