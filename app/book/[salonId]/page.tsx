@@ -44,9 +44,8 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
   const [clientUser, setClientUser]   = useState<any>(null)
   const [clientRecord, setClientRecord] = useState<any>(null)
   const [clientAppts, setClientAppts] = useState<any[]>([])
-  const [authView, setAuthView]       = useState<'choice'|'otp'|'verify'|null>(null)
+  const [authView, setAuthView]       = useState<'choice'|'otp'|'sent'|null>(null)
   const [otpEmail, setOtpEmail]       = useState('')
-  const [otpCode, setOtpCode]         = useState('')
   const [otpSending, setOtpSending]   = useState(false)
   const [otpError, setOtpError]       = useState('')
 
@@ -89,23 +88,17 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
     }
   }
 
-  async function sendOtp() {
+  async function sendMagicLink() {
     if (!otpEmail.includes('@')) { setOtpError('Email invalide'); return }
     setOtpSending(true); setOtpError('')
-    const { error } = await sb.auth.signInWithOtp({ email: otpEmail, options: { shouldCreateUser: true } })
+    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(window.location.pathname)}`
+    const { error } = await sb.auth.signInWithOtp({
+      email: otpEmail,
+      options: { shouldCreateUser: true, emailRedirectTo: redirectTo },
+    })
     setOtpSending(false)
     if (error) { setOtpError(error.message); return }
-    setAuthView('verify')
-  }
-
-  async function verifyOtp() {
-    setOtpSending(true); setOtpError('')
-    const { data, error } = await sb.auth.verifyOtp({ email: otpEmail, token: otpCode, type: 'email' })
-    setOtpSending(false)
-    if (error) { setOtpError('Code incorrect, réessayez'); return }
-    setClientUser(data.user)
-    setAuthView(null)
-    if (data.session) fetchClientData(data.session.access_token)
+    setAuthView('sent')
   }
 
   async function signOut() {
@@ -264,34 +257,37 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
         {authView === 'otp' && <>
           <button onClick={()=>setAuthView('choice')} style={{background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:12,fontFamily:'inherit',marginBottom:14,padding:0}}>← Retour</button>
           <div style={{fontSize:17,fontWeight:700,marginBottom:6}}>Votre email</div>
-          <div style={{fontSize:12,color:'#888',marginBottom:16}}>Nous vous enverrons un code à 6 chiffres pour vous connecter.</div>
+          <div style={{fontSize:12,color:'#888',marginBottom:16}}>Vous recevrez un lien de connexion par email. Aucun mot de passe requis.</div>
           <input value={otpEmail} onChange={e=>{setOtpEmail(e.target.value);setOtpError('')}}
             placeholder="votre@email.fr" type="email"
             style={{width:'100%',border:'1.5px solid #e8e8e8',borderRadius:10,padding:'12px 14px',fontSize:14,fontFamily:'inherit',outline:'none',marginBottom:10}}
-            onKeyDown={e=>e.key==='Enter'&&sendOtp()}
+            onKeyDown={e=>e.key==='Enter'&&sendMagicLink()}
           />
           {otpError&&<div style={{fontSize:11,color:'#e53e3e',marginBottom:8}}>{otpError}</div>}
-          <button onClick={sendOtp} disabled={otpSending}
+          <button onClick={sendMagicLink} disabled={otpSending}
             style={{width:'100%',background:T,color:'#fff',border:'none',borderRadius:11,padding:'13px',fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:'inherit',opacity:otpSending?.6:1}}>
-            {otpSending ? 'Envoi…' : 'Envoyer le code →'}
+            {otpSending ? 'Envoi…' : 'Envoyer le lien →'}
           </button>
         </>}
-        {authView === 'verify' && <>
-          <div style={{fontSize:17,fontWeight:700,marginBottom:6}}>Code reçu ?</div>
-          <div style={{fontSize:12,color:'#888',marginBottom:16}}>Entrez le code à 6 chiffres envoyé à <strong>{otpEmail}</strong>.</div>
-          <input value={otpCode} onChange={e=>{setOtpCode(e.target.value.replace(/\D/g,'').slice(0,6));setOtpError('')}}
-            placeholder="123456" type="text" inputMode="numeric" maxLength={6}
-            style={{width:'100%',border:'1.5px solid #e8e8e8',borderRadius:10,padding:'12px 14px',fontSize:22,fontFamily:'monospace',outline:'none',marginBottom:10,textAlign:'center',letterSpacing:'0.3em'}}
-            onKeyDown={e=>e.key==='Enter'&&verifyOtp()}
-          />
-          {otpError&&<div style={{fontSize:11,color:'#e53e3e',marginBottom:8}}>{otpError}</div>}
-          <button onClick={verifyOtp} disabled={otpSending||otpCode.length<6}
-            style={{width:'100%',background:T,color:'#fff',border:'none',borderRadius:11,padding:'13px',fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:'inherit',opacity:(otpSending||otpCode.length<6)?.5:1}}>
-            {otpSending ? 'Vérification…' : 'Confirmer →'}
-          </button>
-          <button onClick={()=>setAuthView('otp')} style={{width:'100%',background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:12,fontFamily:'inherit',marginTop:10}}>
-            Renvoyer le code
-          </button>
+        {authView === 'sent' && <>
+          <div style={{textAlign:'center'}}>
+            <div style={{fontSize:40,marginBottom:12}}>📬</div>
+            <div style={{fontSize:17,fontWeight:700,marginBottom:8}}>Vérifiez votre boîte mail</div>
+            <div style={{fontSize:13,color:'#666',lineHeight:1.6,marginBottom:20}}>
+              Un lien de connexion a été envoyé à <strong>{otpEmail}</strong>.<br/>
+              Cliquez sur le lien dans l'email pour vous connecter.
+            </div>
+            <div style={{background:'#f8f8f8',borderRadius:10,padding:'10px 14px',fontSize:11,color:'#888',marginBottom:16,textAlign:'left' as const}}>
+              💡 Le lien expire dans 1 heure. Vérifiez aussi vos spams.
+            </div>
+            <button onClick={()=>setAuthView(null)}
+              style={{width:'100%',background:'#f5f5f5',color:'#555',border:'none',borderRadius:11,padding:'12px',fontSize:13,cursor:'pointer',fontFamily:'inherit',marginBottom:8}}>
+              Continuer sans compte pour l'instant
+            </button>
+            <button onClick={()=>setAuthView('otp')} style={{background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:12,fontFamily:'inherit'}}>
+              Renvoyer le lien
+            </button>
+          </div>
         </>}
       </div>
     </div>
