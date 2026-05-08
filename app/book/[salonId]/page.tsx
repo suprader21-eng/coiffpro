@@ -44,8 +44,9 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
   const [clientUser, setClientUser]   = useState<any>(null)
   const [clientRecord, setClientRecord] = useState<any>(null)
   const [clientAppts, setClientAppts] = useState<any[]>([])
-  const [authView, setAuthView]       = useState<'choice'|'otp'|'sent'|null>(null)
+  const [authView, setAuthView]       = useState<'choice'|'otp'|'verify'|null>(null)
   const [otpEmail, setOtpEmail]       = useState('')
+  const [otpCode, setOtpCode]         = useState('')
   const [otpSending, setOtpSending]   = useState(false)
   const [otpError, setOtpError]       = useState('')
 
@@ -88,17 +89,28 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
     }
   }
 
-  async function sendMagicLink() {
+  async function sendOtp() {
     if (!otpEmail.includes('@')) { setOtpError('Email invalide'); return }
     setOtpSending(true); setOtpError('')
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(window.location.pathname)}`
     const { error } = await sb.auth.signInWithOtp({
       email: otpEmail,
-      options: { shouldCreateUser: true, emailRedirectTo: redirectTo },
+      options: { shouldCreateUser: true },
     })
     setOtpSending(false)
     if (error) { setOtpError(error.message); return }
-    setAuthView('sent')
+    setAuthView('verify')
+  }
+
+  async function verifyOtp() {
+    if (otpCode.length < 6) return
+    setOtpSending(true); setOtpError('')
+    const { data, error } = await sb.auth.verifyOtp({ email: otpEmail, token: otpCode, type: 'email' })
+    setOtpSending(false)
+    if (error) { setOtpError('Code incorrect ou expiré, réessayez'); return }
+    setClientUser(data.user)
+    setAuthView(null)
+    setOtpCode('')
+    if (data.session) fetchClientData(data.session.access_token)
   }
 
   async function signOut() {
@@ -257,37 +269,34 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
         {authView === 'otp' && <>
           <button onClick={()=>setAuthView('choice')} style={{background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:12,fontFamily:'inherit',marginBottom:14,padding:0}}>← Retour</button>
           <div style={{fontSize:17,fontWeight:700,marginBottom:6}}>Votre email</div>
-          <div style={{fontSize:12,color:'#888',marginBottom:16}}>Vous recevrez un lien de connexion par email. Aucun mot de passe requis.</div>
+          <div style={{fontSize:12,color:'#888',marginBottom:16}}>Nous vous enverrons un code à 6 chiffres par email.</div>
           <input value={otpEmail} onChange={e=>{setOtpEmail(e.target.value);setOtpError('')}}
-            placeholder="votre@email.fr" type="email"
+            placeholder="votre@email.fr" type="email" autoComplete="email"
             style={{width:'100%',border:'1.5px solid #e8e8e8',borderRadius:10,padding:'12px 14px',fontSize:14,fontFamily:'inherit',outline:'none',marginBottom:10}}
-            onKeyDown={e=>e.key==='Enter'&&sendMagicLink()}
+            onKeyDown={e=>e.key==='Enter'&&sendOtp()}
           />
           {otpError&&<div style={{fontSize:11,color:'#e53e3e',marginBottom:8}}>{otpError}</div>}
-          <button onClick={sendMagicLink} disabled={otpSending}
+          <button onClick={sendOtp} disabled={otpSending}
             style={{width:'100%',background:T,color:'#fff',border:'none',borderRadius:11,padding:'13px',fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:'inherit',opacity:otpSending?.6:1}}>
-            {otpSending ? 'Envoi…' : 'Envoyer le lien →'}
+            {otpSending ? 'Envoi…' : 'Envoyer le code →'}
           </button>
         </>}
-        {authView === 'sent' && <>
-          <div style={{textAlign:'center'}}>
-            <div style={{fontSize:40,marginBottom:12}}>📬</div>
-            <div style={{fontSize:17,fontWeight:700,marginBottom:8}}>Vérifiez votre boîte mail</div>
-            <div style={{fontSize:13,color:'#666',lineHeight:1.6,marginBottom:20}}>
-              Un lien de connexion a été envoyé à <strong>{otpEmail}</strong>.<br/>
-              Cliquez sur le lien dans l'email pour vous connecter.
-            </div>
-            <div style={{background:'#f8f8f8',borderRadius:10,padding:'10px 14px',fontSize:11,color:'#888',marginBottom:16,textAlign:'left' as const}}>
-              💡 Le lien expire dans 1 heure. Vérifiez aussi vos spams.
-            </div>
-            <button onClick={()=>setAuthView(null)}
-              style={{width:'100%',background:'#f5f5f5',color:'#555',border:'none',borderRadius:11,padding:'12px',fontSize:13,cursor:'pointer',fontFamily:'inherit',marginBottom:8}}>
-              Continuer sans compte pour l'instant
-            </button>
-            <button onClick={()=>setAuthView('otp')} style={{background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:12,fontFamily:'inherit'}}>
-              Renvoyer le lien
-            </button>
-          </div>
+        {authView === 'verify' && <>
+          <div style={{fontSize:17,fontWeight:700,marginBottom:4}}>Entrez votre code</div>
+          <div style={{fontSize:12,color:'#888',marginBottom:16}}>Code à 6 chiffres envoyé à <strong>{otpEmail}</strong></div>
+          <input value={otpCode} onChange={e=>{setOtpCode(e.target.value.replace(/\D/g,'').slice(0,6));setOtpError('')}}
+            placeholder="123456" type="text" inputMode="numeric" maxLength={6} autoComplete="one-time-code"
+            style={{width:'100%',border:'1.5px solid #e8e8e8',borderRadius:10,padding:'14px',fontSize:28,fontFamily:'monospace',outline:'none',marginBottom:10,textAlign:'center' as const,letterSpacing:'0.4em'}}
+            onKeyDown={e=>e.key==='Enter'&&verifyOtp()}
+          />
+          {otpError&&<div style={{fontSize:11,color:'#e53e3e',marginBottom:8}}>{otpError}</div>}
+          <button onClick={verifyOtp} disabled={otpSending||otpCode.length<6}
+            style={{width:'100%',background:T,color:'#fff',border:'none',borderRadius:11,padding:'13px',fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:'inherit',opacity:(otpSending||otpCode.length<6)?.5:1,marginBottom:10}}>
+            {otpSending ? 'Vérification…' : 'Confirmer →'}
+          </button>
+          <button onClick={()=>{setOtpCode('');sendOtp()}} style={{width:'100%',background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:12,fontFamily:'inherit'}}>
+            Renvoyer le code
+          </button>
         </>}
       </div>
     </div>
