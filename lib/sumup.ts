@@ -16,8 +16,7 @@ export function getSumUpAuthUrl(salonId: string): string {
     response_type: 'code',
     client_id: CLIENT_ID,
     redirect_uri: `${APP_URL}/api/sumup/callback`,
-    scope: 'payments',
-    state: salonId, // On retrouve le salon au retour
+    state: salonId,
   })
   return `${SUMUP_AUTH}?${params.toString()}`
 }
