@@ -309,9 +309,9 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
         {authView === 'verify' && <>
           <div style={{fontSize:17,fontWeight:700,marginBottom:4}}>Entrez votre code</div>
           <div style={{fontSize:12,color:'#888',marginBottom:16}}>Code à 6 chiffres envoyé à <strong>{otpEmail}</strong></div>
-          <input value={otpCode} onChange={e=>{setOtpCode(e.target.value.replace(/\D/g,'').slice(0,6));setOtpError('')}}
-            placeholder="123456" type="text" inputMode="numeric" maxLength={6} autoComplete="one-time-code"
-            style={{width:'100%',border:'1.5px solid #e8e8e8',borderRadius:10,padding:'14px',fontSize:28,fontFamily:'monospace',outline:'none',marginBottom:10,textAlign:'center' as const,letterSpacing:'0.4em'}}
+          <input value={otpCode} onChange={e=>{setOtpCode(e.target.value.replace(/\D/g,'').slice(0,8));setOtpError('')}}
+            placeholder="12345678" type="text" inputMode="numeric" maxLength={8} autoComplete="one-time-code"
+            style={{width:'100%',border:'1.5px solid #e8e8e8',borderRadius:10,padding:'14px',fontSize:24,fontFamily:'monospace',outline:'none',marginBottom:10,textAlign:'center' as const,letterSpacing:'0.3em'}}
             onKeyDown={e=>e.key==='Enter'&&verifyOtp()}
           />
           {otpError&&<div style={{fontSize:11,color:'#e53e3e',marginBottom:8}}>{otpError}</div>}
