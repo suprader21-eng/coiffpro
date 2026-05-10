@@ -133,25 +133,47 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
     }
   }
 
-  /* Load salon data — via API route (service role, bypass RLS, works sans auth) */
+  /* Load salon data — requêtes Supabase directes (policies publiques activées) */
   useEffect(()=>{
     async function load() {
-      const res = await fetch(`/api/book/salon?slug=${encodeURIComponent(params.salonId)}`)
-      if (!res.ok) { setNotFound(true); setLoading(false); return }
-      const json = await res.json()
-      if (!json.salon) { setNotFound(true); setLoading(false); return }
-      setSalon(json.salon)
-      setEmployees(json.employees)
-      setServices(json.services)
-      setHours(json.hours)
-      setPhotos(json.photos)
-      setReviews(json.reviews)
-      setLoading(false)
+      try {
+        // Essayer d'abord par slug
+        let { data: s, error: e1 } = await sb.from('salons').select('*').eq('slug', params.salonId).maybeSingle()
+
+        // Si pas trouvé par slug, essayer par id (ancien format)
+        if (!s) {
+          const { data: s2 } = await sb.from('salons').select('*').eq('id', params.salonId).maybeSingle()
+          s = s2
+        }
+
+        if (!s) {
+          console.error('Salon not found for slug/id:', params.salonId)
+          setNotFound(true); setLoading(false); return
+        }
+        setSalon(s)
+
+        const [emps, svcs, hrs, pics, revs] = await Promise.all([
+          sb.from('employees').select('*').eq('salon_id', s.id).eq('is_active', true).order('sort_order'),
+          sb.from('services').select('*').eq('salon_id', s.id).eq('is_active', true).order('sort_order'),
+          sb.from('salon_hours').select('*').eq('salon_id', s.id).order('day_index'),
+          sb.from('salon_photos').select('*').eq('salon_id', s.id).order('sort_order'),
+          sb.from('reviews').select('*, client:clients(name), employee:employees(name)').eq('salon_id', s.id).order('created_at',{ascending:false}).limit(6),
+        ])
+        setEmployees(emps.data || [])
+        setServices(svcs.data || [])
+        setHours(hrs.data || [])
+        setPhotos(pics.data || [])
+        setReviews(revs.data || [])
+        setLoading(false)
+      } catch(err) {
+        console.error('Load error:', err)
+        setNotFound(true); setLoading(false)
+      }
     }
     load()
   }, [params.salonId])
 
-  /* Load slots for selected date + employee — via API (bypass RLS) */
+  /* Load slots — requêtes Supabase directes */
   useEffect(()=>{
     if (!selEmp || !salon) return
     async function loadSlots() {
@@ -159,15 +181,17 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
       const date = addDays(new Date(), selDate+1)
       const dayStart = new Date(date); dayStart.setHours(0,0,0,0)
       const dayEnd   = new Date(date); dayEnd.setHours(23,59,59,999)
-      const params = new URLSearchParams({
-        salonId: salon.id,
-        employeeId: selEmp!.id,
-        from: dayStart.toISOString(),
-        to:   dayEnd.toISOString(),
-      })
-      const res = await fetch(`/api/book/slots?${params}`)
-      const json = res.ok ? await res.json() : { takenTimes: [] }
-      setSlots(ALL_SLOTS.map(sl=>({ sl, taken: (json.takenTimes||[]).includes(sl) })))
+      const { data: appts } = await sb.from('appointments')
+        .select('scheduled_at,duration_minutes')
+        .eq('salon_id', salon.id)
+        .eq('employee_id', selEmp!.id)
+        .in('status', ['confirmed','pending'])
+        .gte('scheduled_at', dayStart.toISOString())
+        .lte('scheduled_at', dayEnd.toISOString())
+      const takenTimes = (appts||[]).map(a=>
+        new Date(a.scheduled_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
+      )
+      setSlots(ALL_SLOTS.map(sl=>({ sl, taken: takenTimes.includes(sl) })))
     }
     loadSlots()
   }, [selEmp, selDate, salon])
@@ -240,7 +264,8 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
       <div>
         <div style={{fontSize:48,marginBottom:16}}>✂</div>
         <h1 style={{fontSize:22,fontWeight:700,marginBottom:8}}>Salon introuvable</h1>
-        <p style={{color:'#888',fontSize:14}}>Ce lien de réservation n'existe pas ou a été modifié.</p>
+        <p style={{color:'#888',fontSize:14,marginBottom:8}}>Ce lien de réservation n'existe pas ou a été modifié.</p>
+        <p style={{color:'#bbb',fontSize:11,fontFamily:'monospace'}}>slug: {params.salonId}</p>
       </div>
     </div>
   )
