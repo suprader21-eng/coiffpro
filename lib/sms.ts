@@ -1,191 +1,224 @@
 // ============================================================
-// CoiffPro — SMS via Octopush
-// Site : octopush.com 🇫🇷
-// Prix : ~0.045€/SMS France · Zéro abonnement · Paiement à l'usage
-// Sender ID alphanumérique inclus gratuitement
-// ============================================================
+// CoiffPro — SMS via Android SMS Gateway (auto-hébergé)
+// https://github.com/capcom6/android-sms-gateway
 //
 // CONFIGURATION (.env.local) :
-//   OCTOPUSH_API_KEY=votre_cle_api
-//   OCTOPUSH_API_LOGIN=votre@email.com
-//   OCTOPUSH_SENDER=CoiffPro        ← affiché sur le téléphone du client
-//
-// CRÉER UN COMPTE :
-//   1. octopush.com → S'inscrire (gratuit)
-//   2. Créditer son compte (minimum 5€)
-//   3. Paramètres → API → Copier login + clé API
+//   SMS_GATEWAY_URL=http://192.168.1.x:8080   ← IP de votre téléphone Android
+//   SMS_GATEWAY_TOKEN=votre_token_secret
 // ============================================================
 
-const OCTOPUSH_API = 'https://api.octopush.com/v1/public'
+// ── Types ──────────────────────────────────────────────────
 
-// Envoi SMS de base
-export async function sendSMS(
-  to: string,
-  message: string,
-  sender?: string
-): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  const senderName = (sender || process.env.OCTOPUSH_SENDER || 'CoiffPro')
-    .slice(0, 11)
-    .replace(/\s+/g, '')
+type SMSResult =
+  | { success: true;  messageId?: string }
+  | { success: false; error: string; retryable: boolean }
 
+// ── Transport bas niveau ────────────────────────────────────
+
+const GATEWAY_URL   = process.env.SMS_GATEWAY_URL   || ''
+const GATEWAY_TOKEN = process.env.SMS_GATEWAY_TOKEN || ''
+const TIMEOUT_MS    = 10_000
+const MAX_ATTEMPTS  = 3
+
+function maskPhone(phone: string): string {
+  if (phone.length < 6) return '****'
+  return phone.slice(0, 4) + '****' + phone.slice(-4)
+}
+
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
-    const res = await fetch(`${OCTOPUSH_API}/sms-campaign/send`, {
-      method: 'POST',
-      headers: {
-        'api-login': process.env.OCTOPUSH_API_LOGIN!,
-        'api-key': process.env.OCTOPUSH_API_KEY!,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({
-        recipients: [{ phone_number: formatPhone(to) }],
-        text: message,
-        type: 'sms_premium',   // sms_premium = avec accusé de réception
-        sender: senderName,
-        purpose: 'alert',      // alert = transactionnel (meilleure délivrabilité)
-      }),
-    })
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      console.error('Octopush error:', err)
-      return { success: false, error: err.error_description || `Erreur ${res.status}` }
-    }
-
-    const data = await res.json()
-    return { success: true, messageId: data.campaign_id }
-
-  } catch (err: any) {
-    console.error('Octopush SMS error:', err.message)
-    return { success: false, error: err.message }
+    return await fetch(url, { ...options, signal: controller.signal })
+  } finally {
+    clearTimeout(timer)
   }
 }
 
-// ── SMS confirmation RDV ──
+/**
+ * Envoi SMS via Android SMS Gateway
+ * Retry automatique (3 tentatives, backoff exponentiel) sur erreurs réseau/5xx
+ */
+export async function sendSMS(phone: string, message: string): Promise<SMSResult> {
+  if (!GATEWAY_URL || !GATEWAY_TOKEN) {
+    console.error('[SMS] SMS_GATEWAY_URL ou SMS_GATEWAY_TOKEN manquant')
+    return { success: false, error: 'Gateway non configuré', retryable: false }
+  }
+
+  const masked = maskPhone(phone)
+  const endpoint = `${GATEWAY_URL.replace(/\/$/, '')}/send-sms`
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      console.log(`[SMS] Sending to ${masked}${attempt > 1 ? ` (attempt ${attempt}/${MAX_ATTEMPTS})` : ''}`)
+
+      const res = await fetchWithTimeout(
+        endpoint,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${GATEWAY_TOKEN}`,
+          },
+          body: JSON.stringify({ phone: formatPhone(phone), message }),
+        },
+        TIMEOUT_MS
+      )
+
+      // 4xx → erreur définitive, pas de retry
+      if (res.status >= 400 && res.status < 500) {
+        const body = await res.json().catch(() => ({})) as Record<string, any>
+        const errMsg = body.error || body.message || `HTTP ${res.status}`
+        console.error(`[SMS] Failed (${res.status}) – ${errMsg} – no retry`)
+        return { success: false, error: errMsg, retryable: false }
+      }
+
+      // 5xx → retryable
+      if (!res.ok) {
+        if (attempt < MAX_ATTEMPTS) {
+          const delay = Math.pow(2, attempt - 1) * 1000 // 1s, 2s, 4s
+          console.warn(`[SMS] Attempt ${attempt}/${MAX_ATTEMPTS} failed – retrying in ${delay / 1000}s`)
+          await new Promise(r => setTimeout(r, delay))
+          continue
+        }
+        console.error(`[SMS] Failed after ${MAX_ATTEMPTS} attempts – HTTP ${res.status}`)
+        return { success: false, error: `HTTP ${res.status}`, retryable: true }
+      }
+
+      // Succès
+      const data = await res.json().catch(() => ({})) as Record<string, any>
+      const messageId = data.id || data.messageId || data.message_id
+      console.log(`[SMS] Success – messageId: ${messageId || 'n/a'} – to: ${masked}`)
+      return { success: true, messageId }
+
+    } catch (err: any) {
+      const isAbort = err.name === 'AbortError'
+      const errMsg = isAbort ? 'Timeout (10s)' : err.message
+      if (attempt < MAX_ATTEMPTS) {
+        const delay = Math.pow(2, attempt - 1) * 1000
+        console.warn(`[SMS] Attempt ${attempt}/${MAX_ATTEMPTS} failed – retrying in ${delay / 1000}s`)
+        await new Promise(r => setTimeout(r, delay))
+      } else {
+        console.error(`[SMS] Failed after ${MAX_ATTEMPTS} attempts – ${errMsg}`)
+        return { success: false, error: errMsg, retryable: true }
+      }
+    }
+  }
+
+  return { success: false, error: 'Échec inconnu', retryable: true }
+}
+
+// ── Templates de messages ───────────────────────────────────
+// Templates identiques à l'ancienne version Octopush — seul le transport a changé.
+
+/** SMS confirmation de RDV (envoyé après réservation) */
 export async function sendConfirmation({
   clientName, clientPhone, serviceName, date, time, salonName, salonPhone,
 }: {
   clientName: string; clientPhone: string; serviceName: string
   date: string; time: string; salonName: string; salonPhone?: string
-}) {
+}): Promise<SMSResult> {
   const msg =
     `Bonjour ${clientName} ! ` +
     `RDV confirme : ${serviceName} le ${date} a ${time} chez ${salonName}.` +
     (salonPhone ? ` Annulation : ${salonPhone}` : ' Repondez STOP.')
-  return sendSMS(clientPhone, msg, salonName)
+  return sendSMS(clientPhone, msg)
 }
 
-// ── SMS rappel 24h avant ──
+/** SMS rappel 24h avant RDV (cron) */
 export async function sendReminder({
   clientName, clientPhone, serviceName, date, time, salonName, salonPhone,
 }: {
   clientName: string; clientPhone: string; serviceName: string
   date: string; time: string; salonName: string; salonPhone?: string
-}) {
+}): Promise<SMSResult> {
   const msg =
     `Rappel ${clientName} : "${serviceName}" ${date} a ${time} chez ${salonName}.` +
     (salonPhone ? ` Annulation : ${salonPhone}` : '')
-  return sendSMS(clientPhone, msg, salonName)
+  return sendSMS(clientPhone, msg)
 }
 
-// ── SMS demande d'avis Google ──
+/** SMS demande d'avis Google (2h après RDV) */
 export async function sendReviewRequest({
   clientName, clientPhone, salonName, googleLink,
 }: {
   clientName: string; clientPhone: string; salonName: string; googleLink: string
-}) {
+}): Promise<SMSResult> {
   const msg =
     `Merci pour votre visite chez ${salonName} ${clientName} ! ` +
     `Votre avis nous aide beaucoup : ${googleLink}`
-  return sendSMS(clientPhone, msg, salonName)
+  return sendSMS(clientPhone, msg)
 }
 
-// ── SMS fidélité 10ème visite ──
+/** SMS fidélité 10ème visite */
 export async function sendLoyaltyReward({
   clientName, clientPhone, salonName, reward = 'un produit offert',
 }: {
   clientName: string; clientPhone: string; salonName: string; reward?: string
-}) {
+}): Promise<SMSResult> {
   const msg =
     `Felicitations ${clientName} ! ` +
     `10 visites chez ${salonName} = ${reward} a votre prochain RDV !`
-  return sendSMS(clientPhone, msg, salonName)
+  return sendSMS(clientPhone, msg)
 }
 
-// ── SMS relance client inactif ──
+/** SMS relance client inactif */
 export async function sendReactivation({
   clientName, clientPhone, salonName, bookingUrl, weeksSince,
 }: {
   clientName: string; clientPhone: string; salonName: string
   bookingUrl: string; weeksSince: number
-}) {
+}): Promise<SMSResult> {
   const msg =
     `${clientName}, ca fait ${weeksSince} semaines ! ` +
     `Votre RDV chez ${salonName} vous attend : ${bookingUrl}`
-  return sendSMS(clientPhone, msg, salonName)
+  return sendSMS(clientPhone, msg)
 }
 
-// ── Envoi campagne en masse ──
+/** Campagne SMS en masse avec personnalisation par client */
 export async function sendCampaign({
-  phones, message, salonName,
+  clients, message, salonName,
 }: {
-  phones: string[]; message: string; salonName: string
-}) {
-  const senderName = salonName.slice(0, 11).replace(/\s+/g, '')
-
-  // Octopush accepte jusqu'à 1000 destinataires par requête
-  const chunks: string[][] = []
-  for (let i = 0; i < phones.length; i += 100) {
-    chunks.push(phones.slice(i, i + 100))
-  }
-
+  clients: { name: string; phone: string }[]
+  message: string
+  salonName: string
+}): Promise<{ sent: number; failed: number; total: number }> {
   let sent = 0, failed = 0
 
-  for (const chunk of chunks) {
-    try {
-      const res = await fetch(`${OCTOPUSH_API}/sms-campaign/send`, {
-        method: 'POST',
-        headers: {
-          'api-login': process.env.OCTOPUSH_API_LOGIN!,
-          'api-key': process.env.OCTOPUSH_API_KEY!,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          recipients: chunk.map(p => ({ phone_number: formatPhone(p) })),
-          text: message + '\nSTOP 36xxx',
-          type: 'sms_premium',
-          sender: senderName,
-          purpose: 'marketing',
-        }),
-      })
-      if (res.ok) sent += chunk.length
-      else failed += chunk.length
-    } catch {
-      failed += chunk.length
-    }
-    if (chunks.length > 1) await new Promise(r => setTimeout(r, 100))
+  for (const client of clients) {
+    const firstName = client.name.split(' ')[0] || client.name
+    const personalised = message
+      .replace(/\{prénom\}/gi, firstName)
+      .replace(/\{prenom\}/gi, firstName)
+      .replace(/\{salon\}/gi, salonName)
+
+    const result = await sendSMS(client.phone, personalised + '\nSTOP 36xxx')
+    if (result.success) sent++
+    else failed++
   }
 
-  return { sent, failed, total: phones.length }
+  return { sent, failed, total: clients.length }
 }
 
-// ── Vérifier le solde ──
-export async function getCredits(): Promise<{ credits: number } | null> {
+/** Vérifier que le gateway Android répond (health check) */
+export async function getGatewayStatus(): Promise<{ online: boolean; error?: string }> {
+  if (!GATEWAY_URL || !GATEWAY_TOKEN) {
+    return { online: false, error: 'Gateway non configuré' }
+  }
   try {
-    const res = await fetch(`${OCTOPUSH_API}/users/wallet`, {
-      headers: {
-        'api-login': process.env.OCTOPUSH_API_LOGIN!,
-        'api-key': process.env.OCTOPUSH_API_KEY!,
-      },
-    })
-    const data = await res.json()
-    return { credits: data.wallet?.credit || 0 }
-  } catch {
-    return null
+    const res = await fetchWithTimeout(
+      `${GATEWAY_URL.replace(/\/$/, '')}/health`,
+      { headers: { 'Authorization': `Bearer ${GATEWAY_TOKEN}` } },
+      5_000
+    )
+    return { online: res.ok }
+  } catch (err: any) {
+    return { online: false, error: err.message }
   }
 }
 
-// ── Format numéro FR ──
+// ── Format numéro ───────────────────────────────────────────
+
 function formatPhone(phone: string): string {
   const clean = phone.replace(/[\s.\-]/g, '')
   if (clean.startsWith('0'))  return '+33' + clean.slice(1)

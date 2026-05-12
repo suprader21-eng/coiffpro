@@ -126,49 +126,20 @@ export async function POST(req: NextRequest) {
 
       const salonName: string = (campaign.salon as any).name || 'votre salon'
 
-      // Personnalisation du message par client
-      const OCTOPUSH_API = 'https://api.octopush.com/v1/public'
-      const senderName = salonName.slice(0, 11).replace(/\s+/g, '')
-      const chunks: { name: string; phone: string }[][] = []
-      for (let i = 0; i < clients.length; i += 100) chunks.push(clients.slice(i, i + 100))
-
-      let sent = 0, failed = 0
-      for (const chunk of chunks) {
-        for (const client of chunk) {
-          const firstName = client.name.split(' ')[0] || client.name
-          const personalised = campaign.message
-            .replace(/\{prénom\}/gi, firstName)
-            .replace(/\{prenom\}/gi, firstName)
-            .replace(/\{salon\}/gi, salonName)
-          try {
-            const res = await fetch(`${OCTOPUSH_API}/sms-campaign/send`, {
-              method: 'POST',
-              headers: {
-                'api-login': process.env.OCTOPUSH_API_LOGIN!,
-                'api-key': process.env.OCTOPUSH_API_KEY!,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                recipients: [{ phone_number: formatPhone(client.phone) }],
-                text: personalised + '\nSTOP 36xxx',
-                type: 'sms_premium',
-                sender: senderName,
-                purpose: 'marketing',
-              }),
-            })
-            if (res.ok) sent++; else failed++
-          } catch { failed++ }
-        }
-        if (chunks.length > 1) await new Promise(r => setTimeout(r, 100))
-      }
+      // Délégué à sendCampaign dans lib/sms.ts (Android SMS Gateway)
+      const result = await sendCampaign({
+        clients,
+        message: campaign.message,
+        salonName,
+      })
 
       await db.from('sms_campaigns').update({
         status: 'sent',
         sent_at: new Date().toISOString(),
-        recipients_count: sent,
+        recipients_count: result.sent,
       }).eq('id', campaignId)
 
-      return NextResponse.json({ success: true, sent, failed, total: clients.length })
+      return NextResponse.json({ success: true, sent: result.sent, failed: result.failed, total: result.total })
     }
 
     return NextResponse.json({ error: 'Type SMS invalide' }, { status: 400 })
@@ -177,12 +148,4 @@ export async function POST(req: NextRequest) {
     console.error('SMS send error:', err)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
-}
-
-function formatPhone(phone: string): string {
-  const clean = phone.replace(/[\s.\-]/g, '')
-  if (clean.startsWith('0'))  return '+33' + clean.slice(1)
-  if (clean.startsWith('+'))  return clean
-  if (clean.startsWith('33')) return '+' + clean
-  return '+33' + clean
 }
