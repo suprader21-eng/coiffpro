@@ -245,7 +245,7 @@ export default function DemoPage() {
 
       {/* Banner démo */}
       <div style={{background:'#1a9648',color:'#fff',textAlign:'center' as const,fontSize:12,fontWeight:500,padding:'8px 16px'}}>
-        🎭 Ceci est une démonstration CoiffPro —{' '}
+        🎭 Ceci est une démonstration Glowify —{' '}
         <a href="/register" style={{fontWeight:700,textDecoration:'underline'}}>Créez votre propre page gratuitement →</a>
       </div>
 
@@ -416,7 +416,7 @@ export default function DemoPage() {
           </button>
         </div>
         <div style={{maxWidth:960,margin:'16px auto 0',paddingTop:14,borderTop:'1px solid #1e1e1e',display:'flex',justifyContent:'space-between',fontSize:11,color:'rgba(255,255,255,.18)',flexWrap:'wrap' as const,gap:4}}>
-          <span>© {new Date().getFullYear()} {S.name} · Propulsé par <strong style={{color:'rgba(255,255,255,.3)'}}>CoiffPro</strong></span>
+          <span>© {new Date().getFullYear()} {S.name} · Propulsé par <strong style={{color:'rgba(255,255,255,.3)'}}>Glowify</strong></span>
           <a href="/accueil" style={{color:'rgba(255,255,255,.18)'}}>Créer votre page →</a>
         </div>
       </footer>

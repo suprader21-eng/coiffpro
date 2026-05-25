@@ -919,7 +919,7 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
           </button>
         </div>
         <div style={{maxWidth:960,margin:'16px auto 0',paddingTop:14,borderTop:'1px solid #f0f0f0',display:'flex',justifyContent:'space-between',fontSize:11,color:'#bbb',flexWrap:'wrap' as const,gap:4}}>
-          <span>© {new Date().getFullYear()} {salon.name} — Propulsé par <strong>CoiffPro</strong></span>
+          <span>© {new Date().getFullYear()} {salon.name} — Propulsé par <strong>Glowify</strong></span>
         </div>
       </footer>
     </div>

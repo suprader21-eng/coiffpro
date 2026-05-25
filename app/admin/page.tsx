@@ -108,7 +108,7 @@ export default function AdminPage() {
 
       {/* NAV */}
       <nav style={{ height: 50, background: 'var(--bg)', borderBottom: '1px solid var(--b1)', display: 'flex', alignItems: 'center', padding: '0 18px', gap: 12, position: 'sticky', top: 0, zIndex: 60 }}>
-        <span style={{ fontFamily: 'Georgia,serif', fontSize: 18, fontWeight: 700 }}>✂ CoiffPro</span>
+        <span style={{ fontFamily: 'Georgia,serif', fontSize: 18, fontWeight: 700 }}>✂ Glowify</span>
         <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 100, background: '#ede9fe', color: 'var(--purple)', fontWeight: 600, border: '1px solid #c4b5fd' }}>Admin</span>
         <div style={{ display: 'flex', gap: 4, marginLeft: 12 }}>
           {[
@@ -549,7 +549,7 @@ function AdminSupportPage({ salons, call, addToast }: {
                         {m.message}
                       </div>
                       <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 3, padding: '0 4px' }}>
-                        {m.from_admin ? 'CoiffPro (admin)' : sel.name} · {new Date(m.created_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        {m.from_admin ? 'Glowify (admin)' : sel.name} · {new Date(m.created_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                         {!m.from_admin && !m.read_at && <span style={{ marginLeft: 6, color: 'var(--purple)', fontWeight: 600 }}>● non lu</span>}
                       </div>
                     </div>

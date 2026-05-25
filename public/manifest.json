@@ -1,6 +1,6 @@
 {
-  "name": "CoiffPro",
-  "short_name": "CoiffPro",
+  "name": "Glowify",
+  "short_name": "Glowify",
   "description": "Gestion de salon de coiffure — Agenda, clients, réservations",
   "start_url": "/",
   "display": "standalone",

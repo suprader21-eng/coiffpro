@@ -366,5 +366,29 @@ ALTER TABLE salons ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;
 -- S'assurer que 'trialing' est dans le check constraint
 -- (À exécuter dans Supabase SQL Editor si le check constraint existe déjà)
 -- ALTER TABLE salons DROP CONSTRAINT IF EXISTS salons_status_check;
--- ALTER TABLE salons ADD CONSTRAINT salons_status_check 
+-- ALTER TABLE salons ADD CONSTRAINT salons_status_check
 --   CHECK (status IN ('trial','trialing','active','suspended','cancelled'));
+
+-- ═══ PRODUITS & STOCK ═══
+-- Exécutez ce bloc dans Supabase SQL Editor
+CREATE TABLE IF NOT EXISTS products (
+  id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  salon_id             UUID REFERENCES salons(id) ON DELETE CASCADE,
+  reference            TEXT NOT NULL,           -- numéro / SKU produit
+  name                 TEXT NOT NULL,
+  brand                TEXT DEFAULT '',
+  category             TEXT DEFAULT 'Soins',
+  stock_quantity       INTEGER DEFAULT 0,
+  stock_alert          INTEGER DEFAULT 5,        -- seuil alerte stock faible
+  purchase_price_cents INTEGER DEFAULT 0,
+  sale_price_cents     INTEGER DEFAULT 0,
+  is_active            BOOLEAN DEFAULT true,
+  created_at           TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY IF NOT EXISTS "products_access" ON products FOR ALL
+  USING (salon_id = get_salon_id_for_user(auth.uid()));
+
+CREATE INDEX IF NOT EXISTS idx_products_salon ON products(salon_id);
