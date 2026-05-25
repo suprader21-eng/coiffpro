@@ -909,7 +909,16 @@ export default function Dashboard() {
             }
           </Card>
           <Card>
-            <CardHd title="Danger zone" />
+            <CardHd title="Sécurité" />
+            <Btn ghost onClick={async()=>{
+              const sb = getBrowserClient()
+              const { data: { session } } = await sb.auth.getSession()
+              if (!session?.user?.email) return
+              await sb.auth.resetPasswordForEmail(session.user.email, {
+                redirectTo: `${window.location.origin}/reset-password`,
+              })
+              addToast('📬 Lien envoyé à votre email')
+            }} style={{width:'100%',marginBottom:8}}>Changer mon mot de passe</Btn>
             <Btn ghost danger onClick={async()=>{await getBrowserClient().auth.signOut();router.push('/login')}} style={{width:'100%'}}>Se déconnecter</Btn>
           </Card>
         </div>
