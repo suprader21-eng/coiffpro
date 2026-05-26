@@ -26,7 +26,11 @@ export async function POST(req: NextRequest) {
   // Paiement SumUp
   if (method === 'sumup') {
     try {
-      const token = appt.salon.sumup_access_token || process.env.SUMUP_CLIENT_SECRET!
+      const token = appt.salon.sumup_access_token
+      if (!token) {
+        return NextResponse.json({ error: 'SumUp non connecté — allez dans Paramètres pour connecter votre compte' }, { status: 400 })
+      }
+      console.log('[Payment] SumUp token present:', !!token, '| amount:', final, 'cents')
       const checkout = await createCheckout({
         accessToken: token,
         amountCents: final,

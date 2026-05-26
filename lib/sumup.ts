@@ -83,6 +83,9 @@ export async function createCheckout({
   reference: string
   redirectUrl: string
 }) {
+  // Référence unique (évite les doublons si on réessaie)
+  const uniqueRef = `${reference}-${Date.now()}`
+
   const res = await fetch(`${SUMUP_API}/v0.1/checkouts`, {
     method: 'POST',
     headers: {
@@ -90,7 +93,7 @@ export async function createCheckout({
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      checkout_reference: reference,
+      checkout_reference: uniqueRef,
       amount: amountCents / 100,
       currency: 'EUR',
       description,
@@ -98,8 +101,10 @@ export async function createCheckout({
     }),
   })
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.message || 'Erreur SumUp checkout')
+    const errBody = await res.json().catch(() => ({}))
+    const detail = errBody.message || errBody.error_description || errBody.error || JSON.stringify(errBody)
+    console.error(`SumUp checkout error HTTP ${res.status}:`, errBody)
+    throw new Error(`HTTP ${res.status} — ${detail}`)
   }
   return res.json()
   // Retourne { id, hosted_checkout_url } → rediriger le client vers hosted_checkout_url
