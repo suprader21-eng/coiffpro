@@ -48,11 +48,14 @@ export async function POST(req: NextRequest) {
       const newTotalSpent = (client.total_spent_cents || 0) + final
       // Fidélité : cadeau tous les 10 visites
       const giftAvailable = newVisitCount % 10 === 0
+      // loyalty_points = position dans le cycle de 10 (10 = cadeau disponible, sinon 1-9)
+      const newLoyaltyPoints = giftAvailable ? 10 : newVisitCount % 10
 
       await db.from('clients').update({
         visit_count:        newVisitCount,
         total_spent_cents:  newTotalSpent,
         last_visit_at:      new Date().toISOString(),
+        loyalty_points:     newLoyaltyPoints,
         ...(giftAvailable ? { gift_available: true } : {}),
       }).eq('id', appt.client_id)
     }

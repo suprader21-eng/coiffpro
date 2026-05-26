@@ -1006,7 +1006,7 @@ export default function Dashboard() {
         ))}
       </Card>
       <div style={{marginTop:10,fontSize:11,color:'var(--t3)',maxWidth:540}}>
-        Les SMS sont envoyés via Octopush. Assurez-vous d'avoir un compte configuré et des crédits disponibles.
+        Les SMS sont envoyés via votre passerelle Android SMS Gateway configurée dans les paramètres serveur.
       </div>
     </>
   }

@@ -83,7 +83,8 @@ export async function POST(req: NextRequest) {
           clientId = existing.id
         } else {
           const { data: newClient, error: cErr } = await admin.from('clients').insert({
-            salon_id: salon.id, name: data.clientName, phone: data.phone, email: data.email || null
+            salon_id: salon.id, name: data.clientName, phone: data.phone, email: data.email || null,
+            visit_count: 0, total_spent_cents: 0, loyalty_points: 0,
           }).select('id').single()
           if (cErr || !newClient) return NextResponse.json({ error: 'Erreur création client' }, { status: 400 })
           clientId = newClient.id
