@@ -134,6 +134,20 @@ export default function Dashboard() {
       tokenRef.current = session.access_token
 
       const userEmail = session.user.email
+
+      // Si retour OAuth SumUp, attendre que le callback ait sauvegardé en base
+      const urlParams = new URLSearchParams(window.location.search)
+      const sumupStatus = urlParams.get('sumup')
+      if (sumupStatus === 'connected') {
+        await new Promise(r => setTimeout(r, 1500))
+        setPage('paiements')
+        // Nettoyer l'URL sans recharger
+        window.history.replaceState({}, '', '/dashboard')
+      } else if (sumupStatus === 'error') {
+        addToast('❌ Erreur de connexion SumUp')
+        window.history.replaceState({}, '', '/dashboard')
+      }
+
       let { data: salonData } = await sb.from('salons').select('*').eq('email', userEmail).single()
 
       if (!salonData) {
@@ -143,6 +157,11 @@ export default function Dashboard() {
         salonData = retry
       }
       setSalon(salonData)
+
+      // Afficher toast de succès SumUp après chargement
+      if (sumupStatus === 'connected') {
+        setTimeout(() => addToast('✅ SumUp connecté avec succès !'), 500)
+      }
 
       const [emps, svcs, cls, appts, prods, cmpgns] = await Promise.all([
         sb.from('employees').select('*').eq('salon_id', salonData!.id).order('sort_order'),
