@@ -27,14 +27,29 @@ export async function GET(req: NextRequest) {
     salonId // fallback : utiliser l'id salon pour marquer comme connecté
 
   const db = getSupabaseAdmin()
-  await db.from('salons').update({
+
+  // Sauvegarder d'abord les colonnes de base (toujours présentes)
+  const { error: updateError } = await db.from('salons').update({
     sumup_access_token: tokens.access_token,
-    sumup_refresh_token: tokens.refresh_token ?? null,
     sumup_merchant_code: merchantCode,
-    sumup_token_expires_at: tokens.expires_in
-      ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
-      : null,
   }).eq('id', salonId)
+
+  if (updateError) {
+    console.error('SumUp callback update error:', updateError)
+    return NextResponse.redirect(`${APP_URL}/dashboard?sumup=error`)
+  }
+
+  // Colonnes optionnelles (ajoutées via migration) — ignorer si absentes
+  try {
+    await db.from('salons').update({
+      sumup_refresh_token: tokens.refresh_token ?? null,
+      sumup_token_expires_at: tokens.expires_in
+        ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
+        : null,
+    }).eq('id', salonId)
+  } catch (_) {
+    // Colonnes pas encore migrées — pas bloquant
+  }
 
   return NextResponse.redirect(`${APP_URL}/dashboard?sumup=connected`)
 }
