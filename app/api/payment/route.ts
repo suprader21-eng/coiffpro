@@ -15,32 +15,17 @@ export async function POST(req: NextRequest) {
 
   const { original, discount, final } = applyDiscount(appt.price_cents, discountType, discountValue)
 
-  // Mettre à jour le RDV avec la remise
+  // Marquer le RDV comme payé
   await db.from('appointments').update({
+    paid: true,
+    payment_method: method,
     discount_type: discountType || null,
     discount_value: discountValue || 0,
     final_price_cents: final,
-    payment_method: method,
+    status: 'completed',
   }).eq('id', appointmentId)
 
-  // Paiement SumUp — enregistrement direct (terminal physique)
-  // Le barber encaisse sur son terminal SumUp, on enregistre ici le paiement
-  if (method === 'sumup') {
-    await db.from('appointments').update({ paid: true, payment_method: 'sumup' }).eq('id', appointmentId)
-    await db.from('payments').insert({
-      salon_id: salonId,
-      appointment_id: appointmentId,
-      amount_cents: original,
-      discount_cents: discount,
-      final_cents: final,
-      method: 'sumup',
-      status: 'completed',
-    })
-    return NextResponse.json({ success: true, final_price_cents: final })
-  }
-
-  // Paiement cash ou carte (enregistrement direct)
-  await db.from('appointments').update({ paid: true, payment_method: method }).eq('id', appointmentId)
+  // Enregistrer le paiement
   await db.from('payments').insert({
     salon_id: salonId,
     appointment_id: appointmentId,
@@ -49,7 +34,29 @@ export async function POST(req: NextRequest) {
     final_cents: final,
     method,
     status: 'completed',
+    ...(method === 'sumup' ? {} : {}),
   })
+
+  // ── Mettre à jour le CRM client ──
+  if (appt.client_id) {
+    const { data: client } = await db.from('clients')
+      .select('visit_count, total_spent_cents')
+      .eq('id', appt.client_id).single()
+
+    if (client) {
+      const newVisitCount = (client.visit_count || 0) + 1
+      const newTotalSpent = (client.total_spent_cents || 0) + final
+      // Fidélité : cadeau tous les 10 visites
+      const giftAvailable = newVisitCount % 10 === 0
+
+      await db.from('clients').update({
+        visit_count:        newVisitCount,
+        total_spent_cents:  newTotalSpent,
+        last_visit_at:      new Date().toISOString(),
+        ...(giftAvailable ? { gift_available: true } : {}),
+      }).eq('id', appt.client_id)
+    }
+  }
 
   return NextResponse.json({ success: true, final_price_cents: final })
 }

@@ -22,18 +22,25 @@ export async function POST(req: NextRequest) {
       .select('id, name, duration_minutes, price_cents')
       .eq('id', serviceId).single()
 
-    // Créer ou retrouver le client
+    // Créer ou retrouver le client, mettre à jour son nom si connu
     const { data: existing } = await db.from('clients')
-      .select('id').eq('salon_id', salonId).eq('phone', phone).maybeSingle()
+      .select('id, name, email').eq('salon_id', salonId).eq('phone', phone).maybeSingle()
 
     let clientId: string
     if (existing) {
       clientId = existing.id
+      // Mettre à jour le nom/email s'ils ont changé ou étaient vides
+      const fullName = `${firstName} ${lastName}`.trim()
+      if (fullName && fullName !== existing.name) {
+        await db.from('clients').update({ name: fullName }).eq('id', clientId)
+      }
     } else {
       const { data: newClient } = await db.from('clients').insert({
         salon_id: salonId,
         name: `${firstName} ${lastName}`.trim(),
         phone,
+        visit_count: 0,
+        total_spent_cents: 0,
       }).select('id').single()
       if (!newClient) return NextResponse.json({ error: 'Erreur client' }, { status: 500 })
       clientId = newClient.id
