@@ -13,6 +13,11 @@ export async function POST(req: NextRequest) {
     .eq('id', appointmentId).single()
   if (!appt) return NextResponse.json({ error: 'RDV introuvable' }, { status: 404 })
 
+  // ⚠️ Garde-fou anti-double comptage : si le RDV est déjà payé, on retourne sans rien modifier
+  if (appt.paid) {
+    return NextResponse.json({ success: true, final_price_cents: appt.final_price_cents || appt.price_cents, already_paid: true })
+  }
+
   const { original, discount, final } = applyDiscount(appt.price_cents, discountType, discountValue)
 
   // Marquer le RDV comme payé
