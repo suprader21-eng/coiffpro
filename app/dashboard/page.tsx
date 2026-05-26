@@ -8,7 +8,7 @@ type Salon = { id:string; name:string; slug:string; email:string; phone:string; 
 type Employee = { id:string; name:string; role:string; color:string; is_active:boolean; sort_order:number }
 type Service = { id:string; name:string; category:string; duration_minutes:number; price_cents:number; is_active:boolean }
 type Client = { id:string; name:string; phone:string; email:string; visit_count:number; total_spent_cents:number; loyalty_points:number; gift_available:boolean; last_visit_at:string; notes:string }
-type Appointment = { id:string; scheduled_at:string; status:string; price_cents:number; final_price_cents:number; paid:boolean; payment_method:string; client:Client|null; service:Service|null; employee:Employee|null }
+type Appointment = { id:string; client_id:string; scheduled_at:string; status:string; price_cents:number; final_price_cents:number; paid:boolean; payment_method:string; client:Client|null; service:Service|null; employee:Employee|null }
 type Product = { id:string; salon_id:string; reference:string; name:string; brand:string; category:string; stock_quantity:number; stock_alert:number; purchase_price_cents:number; sale_price_cents:number; is_active:boolean }
 type Campaign = { id:string; name:string; message:string; status:string; recipients_count:number|null; sent_at:string|null; created_at:string }
 
@@ -1273,13 +1273,19 @@ export default function Dashboard() {
         })
         const json = await res.json()
         if (!res.ok) throw new Error(json.error||'Erreur')
-        if (method==='sumup' && json.checkoutUrl) {
-          window.open(json.checkoutUrl,'_blank')
-          addToast('🔗 Page SumUp ouverte dans un nouvel onglet')
-        } else {
-          setAppointments(prev=>prev.map(x=>x.id===a.id?{...x,paid:true,payment_method:method,final_price_cents:finalPrice}:x))
-          addToast('✅ Paiement enregistré !')
+
+        // Mettre à jour le RDV localement
+        setAppointments(prev=>prev.map(x=>x.id===a.id?{...x,paid:true,payment_method:method,final_price_cents:finalPrice,status:'completed'}:x))
+
+        // Recharger le client depuis la base pour avoir visit_count/total_spent à jour
+        if (a.client_id) {
+          const { data: updatedClient } = await sb.from('clients').select('*').eq('id', a.client_id).single()
+          if (updatedClient) {
+            setClients(prev => prev.map(c => c.id === a.client_id ? updatedClient : c))
+          }
         }
+
+        addToast('✅ Paiement enregistré !')
         setPayModal(null)
       } catch(e:any) { addToast('❌ '+e.message) }
       setSaving(false)
