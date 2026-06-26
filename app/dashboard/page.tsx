@@ -416,7 +416,10 @@ export default function Dashboard() {
             <div style={{fontWeight:700,fontSize:14,textTransform:'capitalize'}}>{dayLabel}</div>
             <div style={{fontSize:11,color:'#2196f3'}}>{salon?.name}</div>
           </div>
-          <button onClick={nextDay} style={{background:'none',border:'none',fontSize:26,cursor:'pointer',color:'var(--t1)',lineHeight:1,padding:'4px 10px'}}>›</button>
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
+            <button onClick={nextDay} style={{background:'none',border:'none',fontSize:26,cursor:'pointer',color:'var(--t1)',lineHeight:1,padding:'4px 10px'}}>›</button>
+            <button onClick={()=>{setApptForm(f=>({...f,date:viewDate.toISOString().split('T')[0],time:'10:00',employeeId:''}));setModal(true)}} style={{width:34,height:34,borderRadius:'50%',background:'var(--green)',border:'none',color:'#fff',fontSize:22,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>+</button>
+          </div>
         </div>
 
         {/* ── Filtre coiffeurs ── */}
@@ -541,18 +544,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ── Barre du bas ── */}
-        <div style={{display:'flex',justifyContent:'space-around',alignItems:'center',padding:'6px 0 8px',background:'var(--bg)',borderTop:'1px solid var(--b1)',flexShrink:0}}>
-          <button onClick={()=>window.open(`/book/${salon?.slug}`,'_blank')} style={{background:'none',border:'none',fontSize:11,color:'var(--t3)',cursor:'pointer',display:'flex',flexDirection:'column' as const,alignItems:'center',gap:2,padding:'4px 16px'}}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-            Ma page
-          </button>
-          <button onClick={()=>{setApptForm(f=>({...f,date:viewDate.toISOString().split('T')[0],time:'10:00',employeeId:''}));setModal(true)}} style={{width:52,height:52,borderRadius:'50%',background:'var(--green)',border:'none',color:'#fff',fontSize:28,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 3px 12px rgba(0,0,0,.2)',flexShrink:0}}>+</button>
-          <button onClick={()=>setViewDate(new Date())} style={{background:'none',border:'none',fontSize:11,color:isToday?'#2196f3':'var(--t3)',fontWeight:isToday?700:400,cursor:'pointer',display:'flex',flexDirection:'column' as const,alignItems:'center',gap:2,padding:'4px 16px'}}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            Aujourd'hui
-          </button>
-        </div>
 
         {/* ── Modal détail RDV ── */}
         {selAppt&&<div className="overlay" onClick={e=>{if(e.target===e.currentTarget)setSelAppt(null)}}>
