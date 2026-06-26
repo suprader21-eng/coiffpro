@@ -270,6 +270,7 @@ export default function Dashboard() {
     const HOUR_H = 64
     const H_START = 8
     const H_END = 21
+    const TIME_W = 46
     const HOURS = Array.from({length: H_END - H_START}, (_, i) => H_START + i)
 
     const [viewDate, setViewDate] = useState(() => new Date())
@@ -281,54 +282,87 @@ export default function Dashboard() {
       date: new Date().toISOString().split('T')[0], time:'10:00', note:''
     })
 
-    // Drag state en ref pour éviter re-renders pendant le glissement
-    const dragRef = useRef<{id:string; offsetY:number; currentTop:number}|null>(null)
+    // ── Drag via Pointer Events (mouse + touch unifié, pointer capture) ──
+    const dragRef = useRef<{id:string; offsetY:number}|null>(null)
+    const dragJustEnded = useRef(false)
     const [dragId, setDragId] = useState<string|null>(null)
     const [dragTop, setDragTop] = useState(0)
-    const containerRef = useRef<HTMLDivElement>(null)
+    const colsRef = useRef<HTMLDivElement>(null) // conteneur des colonnes (référence Y)
 
     const isToday = viewDate.toDateString() === new Date().toDateString()
+    const cols = employees.filter(e => e.is_active).sort((a,b) => a.sort_order - b.sort_order)
     const dayAppts = appointments.filter(a =>
       new Date(a.scheduled_at).toDateString() === viewDate.toDateString() && a.status !== 'cancelled'
     )
+    const getColAppts = (empId: string) => dayAppts.filter(a =>
+      cols.length === 0 ? true : (empId === '__none__' ? !a.employee?.id : a.employee?.id === empId)
+    )
+    const displayCols = cols.length > 0 ? cols : [{ id:'__none__', name:'', color:'#2196f3', is_active:true, role:'', sort_order:0 }]
 
     const timeToY = (d: Date) => ((d.getHours() - H_START) + d.getMinutes() / 60) * HOUR_H
     const yToDate = (y: number): Date => {
       const snapped = Math.round(Math.max(0, y / HOUR_H * 60) / 15) * 15
       const h = H_START + Math.floor(snapped / 60)
       const m = snapped % 60
-      const d = new Date(viewDate); d.setHours(Math.min(h, H_END - 1), m, 0, 0); return d
+      const d = new Date(viewDate)
+      d.setHours(Math.min(h, H_END - 1), m, 0, 0)
+      return d
     }
-    const getClientY = (e: React.MouseEvent|React.TouchEvent) =>
-      'touches' in e ? (e.touches[0]?.clientY ?? (e as React.TouchEvent).changedTouches[0]?.clientY) : (e as React.MouseEvent).clientY
+    const yToTimeStr = (y: number) => {
+      const d = yToDate(y)
+      return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+    }
 
-    const onDragStart = (e: React.MouseEvent|React.TouchEvent, a: Appointment) => {
+    // Pointer capture : smooth drag sans perte même en sortant de l'élément
+    const onPointerDown = (e: React.PointerEvent<HTMLDivElement>, a: Appointment) => {
       if (a.paid) return
       e.preventDefault()
-      const rect = containerRef.current!.getBoundingClientRect()
-      const top = timeToY(new Date(a.scheduled_at))
-      dragRef.current = { id: a.id, offsetY: getClientY(e) - rect.top - top, currentTop: top }
-      setDragId(a.id); setDragTop(top)
+      e.stopPropagation()
+      const el = e.currentTarget
+      el.setPointerCapture(e.pointerId)
+      const containerTop = colsRef.current!.getBoundingClientRect().top
+      const offsetY = e.clientY - containerTop - timeToY(new Date(a.scheduled_at))
+      dragRef.current = { id: a.id, offsetY }
+      setDragId(a.id)
+      setDragTop(timeToY(new Date(a.scheduled_at)))
     }
-    const onDragMove = (e: React.MouseEvent|React.TouchEvent) => {
-      if (!dragRef.current || !containerRef.current) return
-      e.preventDefault()
-      const rect = containerRef.current.getBoundingClientRect()
-      const top = Math.max(0, Math.min(getClientY(e) - rect.top - dragRef.current.offsetY, (H_END - H_START - 0.5) * HOUR_H))
-      dragRef.current.currentTop = top; setDragTop(top)
-    }
-    const onDragEnd = async () => {
+    const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
       if (!dragRef.current) return
-      const { id, currentTop } = dragRef.current
-      dragRef.current = null; setDragId(null)
-      const newDate = yToDate(currentTop)
+      e.preventDefault()
+      const containerTop = colsRef.current!.getBoundingClientRect().top
+      const top = Math.max(0, Math.min(
+        e.clientY - containerTop - dragRef.current.offsetY,
+        (H_END - H_START - 0.25) * HOUR_H
+      ))
+      setDragTop(top)
+    }
+    const onPointerUp = async (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!dragRef.current) return
+      e.currentTarget.releasePointerCapture(e.pointerId)
+      const { id } = dragRef.current
+      dragRef.current = null
+      dragJustEnded.current = true
+      setTimeout(() => { dragJustEnded.current = false }, 200)
+      setDragId(null)
+      const newDate = yToDate(dragTop)
       const orig = appointments.find(a => a.id === id)
-      if (!orig || newDate.toISOString() === orig.scheduled_at) return
+      if (!orig) return
+      if (Math.abs(newDate.getTime() - new Date(orig.scheduled_at).getTime()) < 60000) return
       try {
         await write('update_appointment', { id, data: { scheduled_at: newDate.toISOString() } })
         setAppointments(prev => prev.map(a => a.id === id ? {...a, scheduled_at: newDate.toISOString()} : a))
         addToast('✅ RDV déplacé')
-      } catch(e:any) { addToast('❌ '+e.message) }
+      } catch(err:any) { addToast('❌ '+err.message) }
+    }
+
+    // Clic sur zone vide → pré-remplir heure + coiffeur et ouvrir modal
+    const onColClick = (e: React.MouseEvent<HTMLDivElement>, empId: string) => {
+      if (dragJustEnded.current) return
+      const rect = colsRef.current!.getBoundingClientRect()
+      const y = e.clientY - rect.top
+      const time = yToTimeStr(y)
+      setApptForm(f => ({...f, date: viewDate.toISOString().split('T')[0], time, employeeId: empId === '__none__' ? '' : empId}))
+      setModal(true)
     }
 
     const saveRDV = async () => {
@@ -361,104 +395,127 @@ export default function Dashboard() {
 
     const prevDay = () => { const d = new Date(viewDate); d.setDate(d.getDate()-1); setViewDate(d) }
     const nextDay = () => { const d = new Date(viewDate); d.setDate(d.getDate()+1); setViewDate(d) }
-
-    const dayLabel = viewDate.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'2-digit'})
-      .replace(/^\w/, c => c.toUpperCase())
+    const dayLabel = viewDate.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'2-digit'}).replace(/^\w/,c=>c.toUpperCase())
 
     return (
-      <div style={{display:'flex',flexDirection:'column',height:'calc(100vh - 56px)',margin:'-18px',overflow:'hidden'}}>
-        {/* ── Barre du jour ── */}
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 16px',background:'var(--bg)',borderBottom:'1px solid var(--b1)',flexShrink:0}}>
-          <button onClick={prevDay} style={{background:'none',border:'none',fontSize:24,cursor:'pointer',color:'var(--t1)',padding:'0 8px',lineHeight:1}}>‹</button>
+      <div style={{display:'flex',flexDirection:'column',height:'calc(100vh - 56px)',margin:'-18px',overflow:'hidden',background:'var(--bg)'}}>
+
+        {/* ── Header jour ── */}
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 12px',borderBottom:'1px solid var(--b1)',flexShrink:0}}>
+          <button onClick={prevDay} style={{background:'none',border:'none',fontSize:26,cursor:'pointer',color:'var(--t1)',lineHeight:1,padding:'4px 10px'}}>‹</button>
           <div style={{textAlign:'center'}}>
             <div style={{fontWeight:700,fontSize:14,textTransform:'capitalize'}}>{dayLabel}</div>
-            <div style={{fontSize:11,color:'#2196f3',marginTop:1}}>{salon?.name}</div>
+            <div style={{fontSize:11,color:'#2196f3'}}>{salon?.name}</div>
           </div>
-          <button onClick={nextDay} style={{background:'none',border:'none',fontSize:24,cursor:'pointer',color:'var(--t1)',padding:'0 8px',lineHeight:1}}>›</button>
+          <button onClick={nextDay} style={{background:'none',border:'none',fontSize:26,cursor:'pointer',color:'var(--t1)',lineHeight:1,padding:'4px 10px'}}>›</button>
         </div>
 
-        {/* ── Timeline ── */}
-        <div style={{flex:1,overflow:'auto',background:'var(--s1)'}}
-          onMouseMove={dragId ? onDragMove : undefined}
-          onMouseUp={dragId ? onDragEnd : undefined}
-          onMouseLeave={dragId ? onDragEnd : undefined}
-          onTouchMove={dragId ? onDragMove : undefined}
-          onTouchEnd={dragId ? onDragEnd : undefined}
-        >
-          <div ref={containerRef} style={{position:'relative',height:(H_END-H_START)*HOUR_H+'px',minHeight:'100%'}}>
-
-            {/* Lignes horaires */}
-            {HOURS.map(h => (
-              <div key={h} style={{position:'absolute',top:(h-H_START)*HOUR_H,left:0,right:0,display:'flex',alignItems:'flex-start',pointerEvents:'none'}}>
-                <span style={{width:46,fontSize:10,color:'var(--t3)',textAlign:'right',paddingRight:8,paddingTop:3,flexShrink:0,fontVariantNumeric:'tabular-nums'}}>{String(h).padStart(2,'0')}:00</span>
-                <div style={{flex:1,borderTop:'1px solid var(--b1)'}} />
+        {/* ── En-têtes collaborateurs (sticky) ── */}
+        {cols.length > 0 && (
+          <div style={{display:'flex',flexShrink:0,borderBottom:'1px solid var(--b1)',background:'var(--bg)'}}>
+            <div style={{width:TIME_W,flexShrink:0}} />
+            {displayCols.map(emp => (
+              <div key={emp.id} style={{flex:1,textAlign:'center',padding:'6px 4px',borderLeft:'1px solid var(--b1)',display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>
+                <div style={{width:8,height:8,borderRadius:'50%',background:emp.color||'#c8a96e',flexShrink:0}} />
+                <span style={{fontSize:12,fontWeight:600,color:'var(--t1)'}}>{emp.name}</span>
               </div>
             ))}
+          </div>
+        )}
 
-            {/* Demi-heures */}
-            {HOURS.map(h => (
-              <div key={`h${h}`} style={{position:'absolute',top:(h-H_START)*HOUR_H+HOUR_H/2,left:46,right:0,borderTop:'1px dashed var(--b1)',opacity:.5,pointerEvents:'none'}} />
-            ))}
+        {/* ── Timeline scrollable ── */}
+        <div style={{flex:1,overflowY:'auto',overflowX:'hidden',position:'relative'}}>
+          <div style={{display:'flex',height:(H_END-H_START)*HOUR_H+'px'}}>
 
-            {/* Ligne "maintenant" */}
-            {isToday && (() => {
-              const top = timeToY(new Date())
-              return <div style={{position:'absolute',left:46,right:0,top,zIndex:10,pointerEvents:'none'}}>
-                <div style={{height:2,background:'#f44336',position:'relative'}}>
-                  <div style={{width:8,height:8,borderRadius:'50%',background:'#f44336',position:'absolute',left:-4,top:-3}} />
+            {/* Axe horaire */}
+            <div style={{width:TIME_W,flexShrink:0,position:'relative'}}>
+              {HOURS.map(h => (
+                <div key={h} style={{position:'absolute',top:(h-H_START)*HOUR_H-8,right:6,fontSize:10,color:'var(--t3)',fontVariantNumeric:'tabular-nums',userSelect:'none'}}>
+                  {String(h).padStart(2,'0')}:00
                 </div>
-              </div>
-            })()}
+              ))}
+            </div>
 
-            {/* RDV */}
-            {dayAppts.map(a => {
-              const start = new Date(a.scheduled_at)
-              const dur = a.duration_minutes || a.service?.duration_minutes || 30
-              const isDragging = dragId === a.id
-              const top = isDragging ? dragTop : timeToY(start)
-              const height = Math.max(28, (dur / 60) * HOUR_H - 2)
-              const color = a.employee?.color || '#2196f3'
-              const end = new Date(start.getTime() + dur * 60000)
-              const timeStr = `${start.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} - ${end.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`
+            {/* Colonnes */}
+            <div ref={colsRef} style={{flex:1,display:'flex',position:'relative'}}>
 
-              return (
-                <div key={a.id}
-                  style={{
-                    position:'absolute', left:52, right:6, top, height,
-                    background: a.paid ? '#4caf50' : color,
-                    borderRadius:7, padding:'3px 8px',
-                    cursor: a.paid ? 'pointer' : 'grab',
-                    userSelect:'none', touchAction:'none',
-                    opacity: isDragging ? 0.75 : 1,
-                    boxShadow: isDragging ? '0 6px 20px rgba(0,0,0,.25)' : '0 1px 3px rgba(0,0,0,.15)',
-                    zIndex: isDragging ? 100 : 2,
-                    overflow:'hidden',
-                  }}
-                  onMouseDown={e => onDragStart(e, a)}
-                  onTouchStart={e => onDragStart(e, a)}
-                  onClick={() => !dragId && setSelAppt(a)}
-                >
-                  <div style={{fontSize:10,fontWeight:700,color:'#fff',lineHeight:1.3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                    {a.source==='online'&&<span style={{opacity:.8}}>@ </span>}
-                    {a.paid&&<span style={{opacity:.8}}>🔒 </span>}
-                    {timeStr} {a.client?.name||''} {a.service?.name||''}
-                    {a.employee?.name&&<span style={{opacity:.7}}> · {a.employee.name}</span>}
+              {/* Grille horaire (derrière tout) */}
+              <div style={{position:'absolute',inset:0,pointerEvents:'none',zIndex:0}}>
+                {HOURS.map(h => (
+                  <div key={h} style={{position:'absolute',top:(h-H_START)*HOUR_H,left:0,right:0,borderTop:'1px solid var(--b1)'}} />
+                ))}
+                {HOURS.map(h => (
+                  <div key={`m${h}`} style={{position:'absolute',top:(h-H_START)*HOUR_H+HOUR_H/2,left:0,right:0,borderTop:'1px dashed var(--b1)',opacity:.4}} />
+                ))}
+                {isToday && (()=>{
+                  const top = timeToY(new Date())
+                  return <div style={{position:'absolute',left:0,right:0,top,zIndex:5}}>
+                    <div style={{height:2,background:'#f44336',boxShadow:'0 0 4px #f4433688'}}>
+                      <div style={{width:8,height:8,borderRadius:'50%',background:'#f44336',position:'absolute',left:-4,top:-3}} />
+                    </div>
                   </div>
-                </div>
-              )
-            })}
+                })()}
+              </div>
+
+              {/* Une colonne par coiffeur */}
+              {displayCols.map((emp, ci) => {
+                const empAppts = getColAppts(emp.id)
+                return (
+                  <div key={emp.id} style={{flex:1,position:'relative',borderLeft: ci>0?'1px solid var(--b1)':'none',cursor:'cell'}}
+                    onClick={e => onColClick(e, emp.id)}
+                  >
+                    {empAppts.map(a => {
+                      const isDragging = dragId === a.id
+                      const start = new Date(a.scheduled_at)
+                      const dur = a.duration_minutes || a.service?.duration_minutes || 30
+                      const top = isDragging ? dragTop : timeToY(start)
+                      const height = Math.max(26, (dur/60)*HOUR_H - 3)
+                      const end = new Date(start.getTime() + dur*60000)
+                      const bg = a.paid ? '#4caf50' : (emp.color || '#2196f3')
+                      return (
+                        <div key={a.id}
+                          style={{
+                            position:'absolute', left:3, right:3, top, height,
+                            background: bg,
+                            borderRadius:7, padding:'3px 7px',
+                            cursor: a.paid ? 'pointer' : isDragging ? 'grabbing' : 'grab',
+                            userSelect:'none', touchAction:'none',
+                            opacity: isDragging ? 0.82 : 1,
+                            boxShadow: isDragging ? '0 8px 24px rgba(0,0,0,.28)' : '0 1px 4px rgba(0,0,0,.18)',
+                            zIndex: isDragging ? 200 : 3,
+                            overflow:'hidden',
+                            transition: isDragging ? 'none' : 'box-shadow .15s',
+                            willChange: isDragging ? 'top' : 'auto',
+                          }}
+                          onPointerDown={e => onPointerDown(e, a)}
+                          onPointerMove={onPointerMove}
+                          onPointerUp={onPointerUp}
+                          onClick={e => { e.stopPropagation(); if(!dragJustEnded.current) setSelAppt(a) }}
+                        >
+                          <div style={{fontSize:10,fontWeight:700,color:'#fff',lineHeight:1.4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                            {a.source==='online'&&<span style={{opacity:.85}}>@ </span>}
+                            {a.paid&&<span>🔒 </span>}
+                            {start.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}–{end.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} {a.client?.name||''}{a.service?.name?' · '+a.service.name:''}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
 
         {/* ── Barre du bas ── */}
-        <div style={{display:'flex',justifyContent:'space-around',alignItems:'center',padding:'8px 0',background:'var(--bg)',borderTop:'1px solid var(--b1)',flexShrink:0}}>
+        <div style={{display:'flex',justifyContent:'space-around',alignItems:'center',padding:'6px 0 8px',background:'var(--bg)',borderTop:'1px solid var(--b1)',flexShrink:0}}>
           <button onClick={()=>window.open(`/book/${salon?.slug}`,'_blank')} style={{background:'none',border:'none',fontSize:11,color:'var(--t3)',cursor:'pointer',display:'flex',flexDirection:'column' as const,alignItems:'center',gap:2,padding:'4px 16px'}}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
             Ma page
           </button>
-          <button onClick={()=>{setApptForm(f=>({...f,date:viewDate.toISOString().split('T')[0]}));setModal(true)}} style={{width:52,height:52,borderRadius:'50%',background:'var(--green)',border:'none',color:'#fff',fontSize:28,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 3px 10px rgba(0,0,0,.2)'}}>+</button>
-          <button onClick={()=>{setViewDate(new Date())}} style={{background:'none',border:'none',fontSize:11,color: isToday?'#2196f3':'var(--t3)',cursor:'pointer',display:'flex',flexDirection:'column' as const,alignItems:'center',gap:2,padding:'4px 16px',fontWeight: isToday?700:400}}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <button onClick={()=>{setApptForm(f=>({...f,date:viewDate.toISOString().split('T')[0],time:'10:00',employeeId:''}));setModal(true)}} style={{width:52,height:52,borderRadius:'50%',background:'var(--green)',border:'none',color:'#fff',fontSize:28,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 3px 12px rgba(0,0,0,.2)',flexShrink:0}}>+</button>
+          <button onClick={()=>setViewDate(new Date())} style={{background:'none',border:'none',fontSize:11,color:isToday?'#2196f3':'var(--t3)',fontWeight:isToday?700:400,cursor:'pointer',display:'flex',flexDirection:'column' as const,alignItems:'center',gap:2,padding:'4px 16px'}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             Aujourd'hui
           </button>
         </div>
@@ -472,11 +529,11 @@ export default function Dashboard() {
             </div>
             {[
               ['Prestation', selAppt.service?.name||'-'],
-              ['Collaborateur', selAppt.employee?.name||'Non assigné'],
+              ['Coiffeur', selAppt.employee?.name||'Non assigné'],
               ['Téléphone', selAppt.client?.phone||'-'],
               ['Prix', fmt(selAppt.final_price_cents||selAppt.price_cents)],
               ['Source', selAppt.source==='online'?'🌐 En ligne':'✏ Manuel'],
-              ['Note', selAppt.client_note||'-'],
+              ...(selAppt.client_note ? [['Note', selAppt.client_note]] : []),
             ].map(([l,v])=>(
               <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:'1px solid var(--b1)',fontSize:13}}>
                 <span style={{color:'var(--t2)'}}>{l}</span><span style={{fontWeight:500}}>{v}</span>
@@ -504,7 +561,7 @@ export default function Dashboard() {
             </FRow>
             <FRow label="Collaborateur">
               <select className="input" value={apptForm.employeeId} onChange={e=>setApptForm(f=>({...f,employeeId:e.target.value}))}>
-                <option value="">Premier disponible</option>
+                <option value="">Non assigné</option>
                 {employees.filter(e=>e.is_active).map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
               </select>
             </FRow>
