@@ -289,15 +289,24 @@ export default function Dashboard() {
     const [dragTop, setDragTop] = useState(0)
     const colsRef = useRef<HTMLDivElement>(null) // conteneur des colonnes (référence Y)
 
+    const [filterEmp, setFilterEmp] = useState<string|null>(null) // null = tous
+
     const isToday = viewDate.toDateString() === new Date().toDateString()
     const cols = employees.filter(e => e.is_active).sort((a,b) => a.sort_order - b.sort_order)
     const dayAppts = appointments.filter(a =>
       new Date(a.scheduled_at).toDateString() === viewDate.toDateString() && a.status !== 'cancelled'
     )
+
+    // Colonnes affichées selon le filtre
+    const displayCols = (() => {
+      if (cols.length === 0) return [{ id:'__none__', name:'', color:'#2196f3', is_active:true, role:'', sort_order:0 }]
+      if (filterEmp) return cols.filter(c => c.id === filterEmp)
+      return cols // tous = multi-colonnes
+    })()
+
     const getColAppts = (empId: string) => dayAppts.filter(a =>
-      cols.length === 0 ? true : (empId === '__none__' ? !a.employee?.id : a.employee?.id === empId)
+      empId === '__none__' ? true : a.employee?.id === empId
     )
-    const displayCols = cols.length > 0 ? cols : [{ id:'__none__', name:'', color:'#2196f3', is_active:true, role:'', sort_order:0 }]
 
     const timeToY = (d: Date) => ((d.getHours() - H_START) + d.getMinutes() / 60) * HOUR_H
     const yToDate = (y: number): Date => {
@@ -410,14 +419,39 @@ export default function Dashboard() {
           <button onClick={nextDay} style={{background:'none',border:'none',fontSize:26,cursor:'pointer',color:'var(--t1)',lineHeight:1,padding:'4px 10px'}}>›</button>
         </div>
 
-        {/* ── En-têtes collaborateurs (sticky) ── */}
+        {/* ── Filtre coiffeurs ── */}
         {cols.length > 0 && (
-          <div style={{display:'flex',flexShrink:0,borderBottom:'1px solid var(--b1)',background:'var(--bg)'}}>
+          <div style={{display:'flex',gap:6,padding:'7px 10px',borderBottom:'1px solid var(--b1)',flexShrink:0,overflowX:'auto',background:'var(--bg)'}}>
+            <button
+              onClick={()=>setFilterEmp(null)}
+              style={{flexShrink:0,padding:'4px 12px',borderRadius:20,border:'1.5px solid',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit',
+                background: filterEmp===null?'var(--t1)':'transparent',
+                color: filterEmp===null?'var(--bg)':'var(--t2)',
+                borderColor: filterEmp===null?'var(--t1)':'var(--b2)',
+              }}>Tous</button>
+            {cols.map(emp => (
+              <button key={emp.id}
+                onClick={()=>setFilterEmp(emp.id)}
+                style={{flexShrink:0,padding:'4px 12px',borderRadius:20,border:'1.5px solid',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',gap:5,
+                  background: filterEmp===emp.id ? emp.color||'#2196f3' : 'transparent',
+                  color: filterEmp===emp.id ? '#fff' : 'var(--t2)',
+                  borderColor: filterEmp===emp.id ? emp.color||'#2196f3' : 'var(--b2)',
+                }}>
+                <div style={{width:7,height:7,borderRadius:'50%',background: filterEmp===emp.id?'#fff':(emp.color||'#2196f3'),flexShrink:0}} />
+                {emp.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ── En-têtes colonnes (uniquement vue "Tous" multi-colonnes) ── */}
+        {cols.length > 0 && !filterEmp && (
+          <div style={{display:'flex',flexShrink:0,borderBottom:'1px solid var(--b1)',background:'var(--s1)'}}>
             <div style={{width:TIME_W,flexShrink:0}} />
-            {displayCols.map(emp => (
-              <div key={emp.id} style={{flex:1,textAlign:'center',padding:'6px 4px',borderLeft:'1px solid var(--b1)',display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>
-                <div style={{width:8,height:8,borderRadius:'50%',background:emp.color||'#c8a96e',flexShrink:0}} />
-                <span style={{fontSize:12,fontWeight:600,color:'var(--t1)'}}>{emp.name}</span>
+            {displayCols.map((emp,i) => (
+              <div key={emp.id} style={{flex:1,textAlign:'center',padding:'5px 4px',borderLeft:i>0?'1px solid var(--b1)':'none',display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>
+                <div style={{width:7,height:7,borderRadius:'50%',background:emp.color||'#c8a96e',flexShrink:0}} />
+                <span style={{fontSize:11,fontWeight:600,color:'var(--t2)'}}>{emp.name}</span>
               </div>
             ))}
           </div>
