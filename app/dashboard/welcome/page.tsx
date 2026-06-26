@@ -23,7 +23,7 @@ export default function WelcomePage() {
     <div style={{minHeight:'100vh',background:'#fafafa',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'Outfit',system-ui,sans-serif"}}>
       <div style={{textAlign:'center',padding:32,maxWidth:440}}>
         <div style={{width:64,height:64,borderRadius:'50%',background:'#e8f7ee',border:'2px solid #1a9648',display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,margin:'0 auto 20px'}}>✓</div>
-        <h1 style={{fontFamily:'Georgia,serif',fontSize:28,fontWeight:700,marginBottom:10}}>Bienvenue sur Glowify !</h1>
+        <h1 style={{fontFamily:'Georgia,serif',fontSize:28,fontWeight:700,marginBottom:10}}>Bienvenue sur CoiffPro !</h1>
         <p style={{fontSize:14,color:'#666',marginBottom:22,lineHeight:1.7}}>{msg}</p>
         <a href="/login" style={{display:'inline-block',background:'#1a1a1a',color:'#fff',borderRadius:10,padding:'12px 24px',fontSize:14,fontWeight:600,textDecoration:'none'}}>
           Se connecter →

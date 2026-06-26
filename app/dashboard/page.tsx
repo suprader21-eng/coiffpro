@@ -60,7 +60,7 @@ const NAV_GROUPS = [
     {id:'services',label:'Services & Tarifs',icon:'M4 6h16M4 10h16M4 14h16M4 18h16'},
     {id:'stock',label:'Stock produits',icon:'M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z M12 12v.01'},
     {id:'paiements',label:'Paiements SumUp',icon:'M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0-2-2z M1 10h22'},
-    {id:'support',label:'Support Glowify',icon:'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'},
+    {id:'support',label:'Support CoiffPro',icon:'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'},
     {id:'avis',label:'Avis Google',icon:'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'},
     {id:'rappels',label:'Rappels auto',icon:'M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z'},
   ]},
@@ -74,7 +74,7 @@ const PAGE_TITLES:Record<string,string> = {
   dashboard:'Tableau de bord',agenda:'Agenda',clients:'Clients & CRM',fidelite:'Fidélité & Remises',
   marketing:'Campagnes SMS',equipe:'Équipe',services:'Services & Tarifs',stock:'Stock produits',
   paiements:'Paiements SumUp',avis:'Avis Google',rappels:'Rappels automatiques',
-  support:'Support Glowify',
+  support:'Support CoiffPro',
   'ma-page':'Ma page client',parametres:'Paramètres',
 }
 
@@ -212,7 +212,7 @@ export default function Dashboard() {
         <SC label="Cadeaux fidélité" value={gifts} sub="à remettre" up={gifts>0} />
       </div>
       {salon?.admin_message&&<div style={{background:'#ede9fe',border:'1px solid #c4b5fd',borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10}}>
-        <span>📣</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:'#7c3aed'}}>Message de Glowify</div><div style={{fontSize:12,color:'#5b21b6',marginTop:2}}>{salon.admin_message}</div></div>
+        <span>📣</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:'#7c3aed'}}>Message de CoiffPro</div><div style={{fontSize:12,color:'#5b21b6',marginTop:2}}>{salon.admin_message}</div></div>
       </div>}
       {unpaid.length>0&&<div onClick={()=>nav('agenda')} style={{background:'#fdf6e6',border:'1px solid #eed898',borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
         <span>💰</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:'var(--gold)'}}>{unpaid.length} RDV non encaissés</div><div style={{fontSize:11,color:'var(--gold)',opacity:.7}}>Voir agenda →</div></div>
@@ -257,7 +257,7 @@ export default function Dashboard() {
           </Card>
           <Card>
             <CardHd title="Abonnement" />
-            <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:6}}><span style={{color:'var(--t2)'}}>Plan</span><span style={{fontWeight:600}}>Glowify Pro</span></div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:6}}><span style={{color:'var(--t2)'}}>Plan</span><span style={{fontWeight:600}}>CoiffPro Pro</span></div>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:6}}><span style={{color:'var(--t2)'}}>Statut</span><span className="badge badge-ok">{salon?.status==='trial'?'Essai gratuit':'Actif'}</span></div>
             {salon?.status==='trial'&&<div style={{fontSize:12,color:'var(--t3)',marginTop:6}}>Essai jusqu'au {new Date(salon.trial_ends_at).toLocaleDateString('fr-FR')}</div>}
           </Card>
@@ -934,7 +934,7 @@ export default function Dashboard() {
           <Card>
             <CardHd title="Abonnement" />
             <div style={{background:'var(--s1)',border:'1px solid var(--b1)',borderRadius:9,padding:12,marginBottom:12}}>
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:6}}><span style={{color:'var(--t2)'}}>Plan</span><span style={{fontWeight:600}}>Glowify Pro</span></div>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:6}}><span style={{color:'var(--t2)'}}>Plan</span><span style={{fontWeight:600}}>CoiffPro Pro</span></div>
               <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:6}}><span style={{color:'var(--t2)'}}>Tarif</span><span style={{fontWeight:700}}>50€/mois</span></div>
               <div style={{display:'flex',justifyContent:'space-between',fontSize:13}}><span style={{color:'var(--t2)'}}>Statut</span><span className="badge badge-ok">{salon?.status==='trial'?'Essai gratuit':'Actif'}</span></div>
               {salon?.status==='trial'&&<div style={{fontSize:11,color:'var(--t3)',marginTop:6}}>Essai jusqu'au {new Date(salon.trial_ends_at||'').toLocaleDateString('fr-FR')}</div>}
@@ -1401,14 +1401,14 @@ export default function Dashboard() {
         if (!res.ok) throw new Error(json.error)
         setSupportMsgs(prev=>[...prev, json.message])
         setMsg('')
-        addToast('✅ Message envoyé à Glowify')
+        addToast('✅ Message envoyé à CoiffPro')
       } catch(e:any) { addToast('❌ '+e.message) }
       setSending(false)
     }
 
     return <>
       <Card style={{marginBottom:12,background:'#ede9fe',border:'1px solid #c4b5fd'}}>
-        <div style={{fontSize:13,fontWeight:600,color:'#7c3aed',marginBottom:4}}>💬 Support Glowify</div>
+        <div style={{fontSize:13,fontWeight:600,color:'#7c3aed',marginBottom:4}}>💬 Support CoiffPro</div>
         <div style={{fontSize:12,color:'#5b21b6'}}>Posez vos questions ici — nous répondons généralement dans l'heure.</div>
       </Card>
 
@@ -1425,7 +1425,7 @@ export default function Dashboard() {
                   {m.message}
                 </div>
                 <div style={{fontSize:10,color:'var(--t3)',marginTop:3,padding:'0 4px'}}>
-                  {m.from_admin?'Glowify':'Vous'} · {new Date(m.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
+                  {m.from_admin?'CoiffPro':'Vous'} · {new Date(m.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
                 </div>
               </div>
             ))
@@ -1534,7 +1534,7 @@ export default function Dashboard() {
         </button>
         {salon?.logo_url
           ? <img src={salon.logo_url} alt="logo" style={{height:28,maxWidth:80,objectFit:'contain',filter:theme==='dark'?'brightness(0) invert(1)':'none'}} />
-          : <span style={{fontFamily:'Georgia,serif',fontSize:18,fontWeight:700}}>✂ Glowify</span>
+          : <span style={{fontFamily:'Georgia,serif',fontSize:18,fontWeight:700}}>✂ CoiffPro</span>
         }
         <span style={{fontSize:11,color:'var(--t2)'}}>{salon?.name}</span>
         <div style={{marginLeft:'auto',display:'flex',gap:8,alignItems:'center'}}>
@@ -1564,7 +1564,7 @@ export default function Dashboard() {
           ))}
           <div style={{marginTop:'auto',padding:'12px 14px',borderTop:'1px solid var(--b1)'}}>
             <div style={{background:'var(--s2)',border:'1px solid var(--b1)',borderRadius:8,padding:'9px 11px'}}>
-              <div style={{fontSize:10,fontWeight:600,textTransform:'uppercase' as const,letterSpacing:'.06em'}}>Glowify Pro</div>
+              <div style={{fontSize:10,fontWeight:600,textTransform:'uppercase' as const,letterSpacing:'.06em'}}>CoiffPro Pro</div>
               <div style={{fontSize:11,color:'var(--t3)',marginTop:2}}>50€ / mois</div>
             </div>
           </div>

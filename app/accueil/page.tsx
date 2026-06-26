@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react'
 type Testimonial = { name:string; role:string; city:string; avatar:string; text:string; metric:string; metricLabel:string; color:string }
 
 const TESTIMONIALS: Testimonial[] = [
-  { name:'Karim B.', role:'Barber indépendant', city:'Lyon', avatar:'KB', text:'J\'avais mon agenda sur une plateforme tierce. Avec Glowify je paie 5x moins et mes clients réservent sur MON site. J\'ai récupéré 100% de mes données client.', metric:'+47%', metricLabel:'de CA en 4 mois', color:'#4a9fe8' },
+  { name:'Karim B.', role:'Barber indépendant', city:'Lyon', avatar:'KB', text:'J\'avais mon agenda sur une plateforme tierce. Avec CoiffPro je paie 5x moins et mes clients réservent sur MON site. J\'ai récupéré 100% de mes données client.', metric:'+47%', metricLabel:'de CA en 4 mois', color:'#4a9fe8' },
   { name:'Sarah M.', role:'Salon 3 coiffeurs', city:'Montpellier', avatar:'SM', text:'En 2 semaines on était en première position sur Google "coiffeur Montpellier". La visibilité qu\'on payait à une plateforme, maintenant on la possède.', metric:'#1', metricLabel:'sur Google local', color:'#c8a96e' },
   { name:'Dylan R.', role:'Barber Shop premium', city:'Paris 11e', avatar:'DR', text:'Le branding, la page de réservation stylée, le club fidélité… Mes clients me disent que c\'est mieux que chez des grands salons.', metric:'94%', metricLabel:'taux de retour', color:'#9a6ee8' },
-  { name:'Nadia A.', role:'Coiffeuse solo', city:'Bordeaux', avatar:'NA', text:'Je bossais seule, j\'avais pas besoin de payer 80€/mois. Glowify à 50€ me donne tout ce qu\'il me faut. L\'agenda, les rappels, la page. Rien de plus.', metric:'0', metricLabel:'no-show ce mois', color:'#3dba6f' },
+  { name:'Nadia A.', role:'Coiffeuse solo', city:'Bordeaux', avatar:'NA', text:'Je bossais seule, j\'avais pas besoin de payer 80€/mois. CoiffPro à 50€ me donne tout ce qu\'il me faut. L\'agenda, les rappels, la page. Rien de plus.', metric:'0', metricLabel:'no-show ce mois', color:'#3dba6f' },
 ]
 
 const COMPARAISON = [
@@ -64,7 +64,7 @@ export default function LandingPage() {
 
       {/* NAV */}
       <nav style={{position:'sticky',top:0,zIndex:100,background:'rgba(255,255,255,.96)',backdropFilter:'blur(16px)',borderBottom:'1px solid #f0f0f0',height:58,display:'flex',alignItems:'center',padding:'0 20px',gap:16}}>
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,fontWeight:700}}>✂ Glowify</div>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,fontWeight:700}}>✂ CoiffPro</div>
         <div className="nav-desktop" style={{gap:4,marginLeft:8}}>
           <a href="#features" style={{fontSize:13,color:'#666',padding:'6px 10px',borderRadius:8}}>Fonctionnalités</a>
           <a href="#tarifs" style={{fontSize:13,color:'#666',padding:'6px 10px',borderRadius:8}}>Tarifs</a>
@@ -109,7 +109,7 @@ export default function LandingPage() {
       <div className="landing-padding" style={{padding:'72px 24px',background:'#fff'}}>
         <div className="container">
           <div style={{textAlign:'center',marginBottom:40}}>
-            <div style={{display:'inline-block',background:'#fde8e8',color:'#c03030',borderRadius:100,padding:'5px 14px',fontSize:12,fontWeight:600,marginBottom:14}}>Pourquoi choisir Glowify ?</div>
+            <div style={{display:'inline-block',background:'#fde8e8',color:'#c03030',borderRadius:100,padding:'5px 14px',fontSize:12,fontWeight:600,marginBottom:14}}>Pourquoi choisir CoiffPro ?</div>
             <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'clamp(26px,4vw,44px)',fontWeight:700,lineHeight:1.1}}>
               Une alternative aux<br/><em style={{color:'#e05a5a',fontStyle:'italic'}}>plateformes de réservation</em>
             </h2>
@@ -118,7 +118,7 @@ export default function LandingPage() {
           <div className="comparaison" style={{background:'#fafafa',border:'1px solid #f0f0f0',borderRadius:16,overflow:'hidden',maxWidth:760,margin:'0 auto'}}>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',background:'#f0f0f0',borderBottom:'1px solid #e8e8e8'}}>
               <div style={{padding:'12px 18px',textAlign:'center',fontSize:12,fontWeight:700,color:'#999'}}>Plateformes tierces</div>
-              <div style={{padding:'12px 18px',textAlign:'center',fontSize:12,fontWeight:700,color:'#111',background:'#fff',borderLeft:'1px solid #e8e8e8'}}>✂ Glowify</div>
+              <div style={{padding:'12px 18px',textAlign:'center',fontSize:12,fontWeight:700,color:'#111',background:'#fff',borderLeft:'1px solid #e8e8e8'}}>✂ CoiffPro</div>
             </div>
             {COMPARAISON.map((r,i)=>(
               <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 1fr',borderBottom:i<COMPARAISON.length-1?'1px solid #f0f0f0':undefined}}>
@@ -172,7 +172,7 @@ export default function LandingPage() {
               Ton shop mérite une<br/><em style={{color:'#c8a96e',fontStyle:'italic'}}>image à sa hauteur.</em>
             </h2>
             <p style={{fontSize:14,color:'rgba(255,255,255,.55)',lineHeight:1.8,marginBottom:22}}>
-              Les meilleurs barbers ne veulent pas un outil générique. Ils veulent un brand. Glowify crée une expérience "club privé" qui colle à ton identité.
+              Les meilleurs barbers ne veulent pas un outil générique. Ils veulent un brand. CoiffPro crée une expérience "club privé" qui colle à ton identité.
             </p>
             {['Page de réservation à votre image','Expérience client type "membre VIP"','Club fidélité personnalisé','Rappels SMS à votre ton','Galerie photos de vos coupes'].map(f=>(
               <div key={f} style={{display:'flex',alignItems:'center',gap:10,fontSize:13,color:'rgba(255,255,255,.8)',marginBottom:10}}>
@@ -288,7 +288,7 @@ export default function LandingPage() {
           </div>
           <div style={{maxWidth:380,margin:'0 auto'}}>
             <div style={{border:'2px solid #1a1a1a',borderRadius:18,padding:'28px 24px',position:'relative'}}>
-              <div style={{position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',background:'#1a1a1a',color:'#fff',fontSize:10,fontWeight:700,padding:'3px 14px',borderRadius:100,whiteSpace:'nowrap'}}>Glowify Pro — Tout inclus</div>
+              <div style={{position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',background:'#1a1a1a',color:'#fff',fontSize:10,fontWeight:700,padding:'3px 14px',borderRadius:100,whiteSpace:'nowrap'}}>CoiffPro Pro — Tout inclus</div>
               <div style={{textAlign:'center',marginBottom:20}}>
                 <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:50,fontWeight:700,lineHeight:1}}>50€</div>
                 <div style={{fontSize:13,color:'#aaa',marginTop:3}}>/mois</div>
@@ -331,7 +331,7 @@ export default function LandingPage() {
       <footer style={{background:'#111',borderTop:'1px solid #1e1e1e',padding:'36px 24px 20px'}}>
         <div className="container footer-grid">
           <div>
-            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:19,fontWeight:700,color:'#fff',marginBottom:10}}>✂ Glowify</div>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:19,fontWeight:700,color:'#fff',marginBottom:10}}>✂ CoiffPro</div>
             <p style={{fontSize:12,color:'rgba(255,255,255,.3)',lineHeight:1.8,maxWidth:220}}>La plateforme de réservation pour les professionnels de la coiffure.</p>
             <div style={{marginTop:10,fontSize:12,color:'rgba(255,255,255,.3)',lineHeight:1.9}}>
               <div>contact@coiffpro.fr</div>
@@ -357,7 +357,7 @@ export default function LandingPage() {
           </div>
         </div>
         <div style={{maxWidth:1040,margin:'20px auto 0',paddingTop:14,borderTop:'1px solid #1e1e1e',display:'flex',justifyContent:'space-between',fontSize:10,color:'rgba(255,255,255,.18)',flexWrap:'wrap' as const,gap:4}}>
-          <span>© {new Date().getFullYear()} Glowify — Micro-entreprise — Montpellier</span>
+          <span>© {new Date().getFullYear()} CoiffPro — Micro-entreprise — Montpellier</span>
           <span>Fait en France 🇫🇷</span>
         </div>
       </footer>
@@ -374,9 +374,9 @@ export default function LandingPage() {
               <button onClick={()=>setOpenLegal(null)} style={{background:'#f0f0f0',border:'none',borderRadius:'50%',width:30,height:30,cursor:'pointer',fontSize:14}}>✕</button>
             </div>
             <div style={{fontSize:13,color:'#444',lineHeight:1.9}}>
-              {openLegal==='mentions'&&<><p><strong>Éditeur :</strong> Glowify — Micro-entreprise — Responsable : Magnier Noah — Montpellier — contact@coiffpro.fr</p><br/><p><strong>Hébergement :</strong> Vercel Inc. — 440 N Barranca Avenue #4133, Covina, CA 91723, USA</p><br/><p><strong>Propriété intellectuelle :</strong> Tout le contenu est la propriété de Glowify. Reproduction interdite sans autorisation.</p><br/><p><strong>Droit applicable :</strong> Droit français.</p><br/><p style={{color:'#bbb',fontSize:11}}>Mise à jour : 03/05/2026</p></>}
-              {openLegal==='cgu'&&<><p><strong>1. Objet :</strong> Les présentes CGU définissent les modalités d'utilisation de la plateforme Glowify, service de création de site de réservation en ligne.</p><br/><p><strong>2. Éditeur :</strong> Glowify — Micro-entreprise — Montpellier — contact@coiffpro.fr — Responsable : Magnier Noah</p><br/><p><strong>3. Service :</strong> Création d'un site de réservation, gestion des rendez-vous, gestion d'une base client, outils de visibilité.</p><br/><p><strong>4. Tarifs :</strong> Abonnement mensuel de 50€/mois. 14 jours d'essai gratuit. Sans engagement.</p><br/><p><strong>5. Données :</strong> Les données clients appartiennent au professionnel. Glowify agit comme sous-traitant RGPD.</p><br/><p><strong>6. Résiliation :</strong> Résiliation possible à tout moment depuis le dashboard.</p><br/><p><strong>7. Droit applicable :</strong> Droit français. Tribunaux du siège social.</p><br/><p style={{color:'#bbb',fontSize:11}}>Mise à jour : 03/05/2026</p></>}
-              {openLegal==='confidentialite'&&<><p><strong>Responsable :</strong> Glowify — Montpellier — contact@coiffpro.fr — Magnier Noah</p><br/><p><strong>Données collectées :</strong> Nom, email, téléphone des professionnels et de leurs clients finaux.</p><br/><p><strong>Finalités :</strong> Fourniture du service, gestion des comptes, support, amélioration.</p><br/><p><strong>Partage :</strong> Données jamais vendues. Partagées uniquement avec prestataires techniques.</p><br/><p><strong>Droits RGPD :</strong> Accès, rectification, suppression, portabilité. Contact : contact@coiffpro.fr</p><br/><p style={{color:'#bbb',fontSize:11}}>Mise à jour : 03/05/2026</p></>}
+              {openLegal==='mentions'&&<><p><strong>Éditeur :</strong> CoiffPro — Micro-entreprise — Responsable : Magnier Noah — Montpellier — contact@coiffpro.fr</p><br/><p><strong>Hébergement :</strong> Vercel Inc. — 440 N Barranca Avenue #4133, Covina, CA 91723, USA</p><br/><p><strong>Propriété intellectuelle :</strong> Tout le contenu est la propriété de CoiffPro. Reproduction interdite sans autorisation.</p><br/><p><strong>Droit applicable :</strong> Droit français.</p><br/><p style={{color:'#bbb',fontSize:11}}>Mise à jour : 03/05/2026</p></>}
+              {openLegal==='cgu'&&<><p><strong>1. Objet :</strong> Les présentes CGU définissent les modalités d'utilisation de la plateforme CoiffPro, service de création de site de réservation en ligne.</p><br/><p><strong>2. Éditeur :</strong> CoiffPro — Micro-entreprise — Montpellier — contact@coiffpro.fr — Responsable : Magnier Noah</p><br/><p><strong>3. Service :</strong> Création d'un site de réservation, gestion des rendez-vous, gestion d'une base client, outils de visibilité.</p><br/><p><strong>4. Tarifs :</strong> Abonnement mensuel de 50€/mois. 14 jours d'essai gratuit. Sans engagement.</p><br/><p><strong>5. Données :</strong> Les données clients appartiennent au professionnel. CoiffPro agit comme sous-traitant RGPD.</p><br/><p><strong>6. Résiliation :</strong> Résiliation possible à tout moment depuis le dashboard.</p><br/><p><strong>7. Droit applicable :</strong> Droit français. Tribunaux du siège social.</p><br/><p style={{color:'#bbb',fontSize:11}}>Mise à jour : 03/05/2026</p></>}
+              {openLegal==='confidentialite'&&<><p><strong>Responsable :</strong> CoiffPro — Montpellier — contact@coiffpro.fr — Magnier Noah</p><br/><p><strong>Données collectées :</strong> Nom, email, téléphone des professionnels et de leurs clients finaux.</p><br/><p><strong>Finalités :</strong> Fourniture du service, gestion des comptes, support, amélioration.</p><br/><p><strong>Partage :</strong> Données jamais vendues. Partagées uniquement avec prestataires techniques.</p><br/><p><strong>Droits RGPD :</strong> Accès, rectification, suppression, portabilité. Contact : contact@coiffpro.fr</p><br/><p style={{color:'#bbb',fontSize:11}}>Mise à jour : 03/05/2026</p></>}
               {openLegal==='cookies'&&<><p><strong>Types :</strong> Cookies essentiels (connexion, sécurité), cookies d'audience (mesure), cookies fonctionnels.</p><br/><p><strong>Consentement :</strong> Aucun cookie non essentiel sans votre accord.</p><br/><p><strong>Durée :</strong> Maximum 13 mois.</p><br/><p><strong>Gestion :</strong> Via le bandeau ou les paramètres de votre navigateur.</p><br/><p style={{color:'#bbb',fontSize:11}}>Mise à jour : 03/05/2026</p></>}
             </div>
           </div>

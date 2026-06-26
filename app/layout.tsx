@@ -3,17 +3,17 @@ import './globals.css'
 import { Providers } from './providers'
 
 export const metadata: Metadata = {
-  title: 'Glowify — Gestion de salon de coiffure',
+  title: 'CoiffPro — Gestion de salon de coiffure',
   description: 'Créez votre page de réservation, gérez vos clients et automatisez vos rappels SMS. La plateforme pour coiffeurs et barbers indépendants.',
   keywords: ['coiffeur', 'barbier', 'réservation en ligne', 'gestion salon', 'agenda coiffeur'],
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Glowify',
+    title: 'CoiffPro',
   },
   openGraph: {
-    title: 'Glowify — Votre site de réservation',
+    title: 'CoiffPro — Votre site de réservation',
     description: 'La plateforme de réservation pour coiffeurs et barbers indépendants.',
     type: 'website',
     locale: 'fr_FR',
@@ -40,7 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Glowify" />
+        <meta name="apple-mobile-web-app-title" content="CoiffPro" />
         <link rel="apple-touch-icon" href="/icon-192.svg" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>

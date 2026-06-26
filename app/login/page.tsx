@@ -46,7 +46,7 @@ export default function LoginPage() {
     <div style={{minHeight:'100vh',background:'#fafafa',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'Outfit',system-ui,sans-serif",padding:20}}>
       <div style={{width:'100%',maxWidth:380}}>
         <div style={{textAlign:'center',marginBottom:28}}>
-          <a href="/accueil" style={{fontFamily:'Georgia,serif',fontSize:26,fontWeight:700,color:'#111',textDecoration:'none',display:'block'}}>✂ Glowify</a>
+          <a href="/accueil" style={{fontFamily:'Georgia,serif',fontSize:26,fontWeight:700,color:'#111',textDecoration:'none',display:'block'}}>✂ CoiffPro</a>
           <p style={{fontSize:14,color:'#888',marginTop:6}}>
             {view==='login' ? 'Connectez-vous à votre espace' : view==='forgot' ? 'Réinitialiser le mot de passe' : 'Email envoyé'}
           </p>

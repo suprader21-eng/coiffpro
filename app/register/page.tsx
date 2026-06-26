@@ -120,7 +120,7 @@ export default function RegisterPage() {
     <div style={{minHeight:'100vh',background:'#fafafa',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'Outfit,-apple-system,sans-serif'}}>
       <div style={{textAlign:'center',maxWidth:480,padding:32}}>
         <div style={{width:64,height:64,borderRadius:'50%',background:'#e8f7ee',border:'2px solid #1a9648',display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,margin:'0 auto 20px'}}>✓</div>
-        <h1 style={{fontFamily:'Georgia,serif',fontSize:30,fontWeight:700,marginBottom:10}}>Bienvenue sur Glowify !</h1>
+        <h1 style={{fontFamily:'Georgia,serif',fontSize:30,fontWeight:700,marginBottom:10}}>Bienvenue sur CoiffPro !</h1>
         <p style={{fontSize:14,color:'#666',lineHeight:1.7,marginBottom:24}}>
           Votre espace <strong>{form.salonName}</strong> a été créé avec succès.<br/>
           Votre page de réservation est en ligne et votre essai gratuit 14 jours commence maintenant.
@@ -143,7 +143,7 @@ export default function RegisterPage() {
 
       {/* Header */}
       <header style={{background:'#fff',borderBottom:'1px solid #e8e8e8',height:52,display:'flex',alignItems:'center',padding:'0 24px',gap:12}}>
-        <span style={{fontFamily:'Georgia,serif',fontSize:19,fontWeight:700}}>✂ Glowify</span>
+        <span style={{fontFamily:'Georgia,serif',fontSize:19,fontWeight:700}}>✂ CoiffPro</span>
         <span style={{fontSize:12,color:'#aaa',marginLeft:4}}>Inscription</span>
         <a href="/login" style={{marginLeft:'auto',fontSize:12,color:'#666',textDecoration:'none'}}>Déjà un compte ? Se connecter →</a>
       </header>
@@ -275,7 +275,7 @@ export default function RegisterPage() {
             <p style={{fontSize:12,color:'#888',marginBottom:20}}>14 jours gratuits · Sans engagement · Sans carte bancaire</p>
             <div style={{border:'2px solid #1a1a1a',borderRadius:14,padding:22,marginBottom:16,position:'relative'}}>
               <div style={{position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',background:'#1a1a1a',color:'#fff',fontSize:10,fontWeight:700,padding:'3px 14px',borderRadius:100,whiteSpace:'nowrap'}}>
-                Glowify Pro — Tout inclus
+                CoiffPro Pro — Tout inclus
               </div>
               <div style={{display:'flex',alignItems:'baseline',gap:4,marginBottom:16}}>
                 <span style={{fontFamily:'Georgia,serif',fontSize:40,fontWeight:700}}>50€</span>

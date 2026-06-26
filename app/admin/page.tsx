@@ -108,7 +108,7 @@ export default function AdminPage() {
 
       {/* NAV */}
       <nav style={{ height: 50, background: 'var(--bg)', borderBottom: '1px solid var(--b1)', display: 'flex', alignItems: 'center', padding: '0 18px', gap: 12, position: 'sticky', top: 0, zIndex: 60 }}>
-        <span style={{ fontFamily: 'Georgia,serif', fontSize: 18, fontWeight: 700 }}>✂ Glowify</span>
+        <span style={{ fontFamily: 'Georgia,serif', fontSize: 18, fontWeight: 700 }}>✂ CoiffPro</span>
         <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 100, background: '#ede9fe', color: 'var(--purple)', fontWeight: 600, border: '1px solid #c4b5fd' }}>Admin</span>
         <div style={{ display: 'flex', gap: 4, marginLeft: 12 }}>
           {[
@@ -117,6 +117,7 @@ export default function AdminPage() {
             { id: 'support', label: 'Support' },
             { id: 'messages', label: 'Messages' },
             { id: 'domaines', label: 'Domaines' },
+            { id: 'broadcast', label: '📧 Actualités' },
           ].map(p => (
             <div key={p.id} onClick={() => { setPage(p.id); setSel(null) }} style={{ padding: '5px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer', background: page === p.id ? 'var(--t1)' : 'transparent', color: page === p.id ? 'var(--bg)' : 'var(--t2)', fontWeight: page === p.id ? 600 : 400 }}>
               {p.label}
@@ -259,6 +260,11 @@ export default function AdminPage() {
         {page === 'domaines' && (
           <DomainsPage salons={salons} call={call} addToast={addToast}
             onUpdate={(id, domain) => setSalons(prev => prev.map(s => s.id === id ? { ...s, custom_domain: domain } : s))} />
+        )}
+
+        {/* ── BROADCAST ── */}
+        {page === 'broadcast' && (
+          <BroadcastPage salons={salons} token={tokenRef.current} addToast={addToast} />
         )}
 
       </div>
@@ -549,7 +555,7 @@ function AdminSupportPage({ salons, call, addToast }: {
                         {m.message}
                       </div>
                       <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 3, padding: '0 4px' }}>
-                        {m.from_admin ? 'Glowify (admin)' : sel.name} · {new Date(m.created_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        {m.from_admin ? 'CoiffPro (admin)' : sel.name} · {new Date(m.created_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                         {!m.from_admin && !m.read_at && <span style={{ marginLeft: 6, color: 'var(--purple)', fontWeight: 600 }}>● non lu</span>}
                       </div>
                     </div>
@@ -650,4 +656,88 @@ function DomainsPage({ salons, call, addToast, onUpdate }: {
       ))}
     </div>
   )
+}
+
+/* ── BROADCAST EMAIL ── */
+function BroadcastPage({ salons, token, addToast }: {
+  salons: Salon[]; token: string|null; addToast: (m:string)=>void
+}) {
+  const active = salons.filter(s => s.status === 'active')
+  const trials = salons.filter(s => s.status === 'trial')
+  const [subject, setSubject] = useState('')
+  const [body, setBody] = useState('')
+  const [filter, setFilter] = useState<'all'|'active'|'trial'>('all')
+    const [sending, setSending] = useState(false)
+    const [sent, setSent] = useState<{ok:number;fail:number}|null>(null)
+
+    const targets = salons.filter(s => filter === 'all' ? true : s.status === filter)
+
+    const send = async () => {
+      if (!subject || !body) { addToast('⚠ Objet et message requis'); return }
+      if (!confirm(`Envoyer à ${targets.length} barbers ?`)) return
+      setSending(true)
+      setSent(null)
+      try {
+        const res = await fetch('/api/admin/broadcast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ subject, body, emails: targets.map(s => ({ email: s.email, name: s.name })) }),
+        })
+        const j = await res.json()
+        if (!res.ok) throw new Error(j.error || 'Erreur')
+        setSent({ ok: j.ok, fail: j.fail })
+        addToast(`✅ Envoyé à ${j.ok} barbers`)
+      } catch(e:any) { addToast('❌ '+e.message) }
+      setSending(false)
+    }
+
+    return (
+      <div style={{ maxWidth: 640 }}>
+        <div style={{ background: 'var(--bg)', border: '1px solid var(--b1)', borderRadius: 12, padding: 20, marginBottom: 12 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>📧 Envoyer une actualité aux barbers</div>
+
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 11, color: 'var(--t2)', textTransform: 'uppercase', letterSpacing: '.05em', display: 'block', marginBottom: 4 }}>Destinataires</label>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {(['all','active','trial'] as const).map(v => (
+                <button key={v} onClick={()=>setFilter(v)} style={{ padding: '5px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer', border: '1px solid var(--b1)', background: filter===v?'var(--t1)':'var(--s1)', color: filter===v?'var(--bg)':'var(--t1)', fontFamily: 'inherit' }}>
+                  {v==='all'?`Tous (${salons.length})`:v==='active'?`Actifs (${active.length})`:`Essai (${trials.length})`}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 6 }}>
+              → {targets.length} destinataire{targets.length>1?'s':''} : {targets.map(s=>s.email).join(', ')}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 11, color: 'var(--t2)', textTransform: 'uppercase', letterSpacing: '.05em', display: 'block', marginBottom: 4 }}>Objet</label>
+            <input className="input" placeholder="ex: Nouvelle fonctionnalité CoiffPro 🎉" value={subject} onChange={e=>setSubject(e.target.value)} style={{ width: '100%' }} />
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 11, color: 'var(--t2)', textTransform: 'uppercase', letterSpacing: '.05em', display: 'block', marginBottom: 4 }}>Message</label>
+            <textarea className="input" placeholder="Bonjour,&#10;&#10;Voici les dernières nouvelles de CoiffPro…" value={body} onChange={e=>setBody(e.target.value)} style={{ width: '100%', height: 200, resize: 'vertical', lineHeight: 1.6 }} />
+            <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 4 }}>Tu peux utiliser {'{nom}'} pour personnaliser avec le nom du salon.</div>
+          </div>
+
+          {sent && (
+            <div style={{ background: '#e8f7ee', border: '1px solid #b8dfc6', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 13 }}>
+              ✅ Envoyé à <strong>{sent.ok}</strong> barbers{sent.fail>0?` · ❌ ${sent.fail} échec(s)`:''}
+            </div>
+          )}
+
+          <button className="btn" onClick={send} disabled={sending||!subject||!body} style={{ width: '100%', opacity: (sending||!subject||!body)?0.5:1 }}>
+            {sending?`Envoi en cours…`:`📧 Envoyer à ${targets.length} barbers`}
+          </button>
+        </div>
+
+        <div style={{ background: 'var(--bg)', border: '1px solid var(--b1)', borderRadius: 12, padding: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Aperçu email</div>
+          <div style={{ background: 'var(--s1)', borderRadius: 8, padding: 16, fontSize: 13, lineHeight: 1.7, color: 'var(--t1)', whiteSpace: 'pre-wrap', minHeight: 60 }}>
+            {body ? body.replace(/\{nom\}/g, 'Idams Barber') : <span style={{ color: 'var(--t3)' }}>Aperçu du message…</span>}
+          </div>
+        </div>
+      </div>
+    )
 }
