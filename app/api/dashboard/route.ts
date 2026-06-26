@@ -110,6 +110,20 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ data: appt })
       }
 
+      case 'update_appointment': {
+        const { error } = await admin.from('appointments')
+          .update(data).eq('id', id).eq('salon_id', salon.id)
+        if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+        return NextResponse.json({ ok: true })
+      }
+
+      case 'cancel_appointment': {
+        const { error } = await admin.from('appointments')
+          .update({ status: 'cancelled' }).eq('id', id).eq('salon_id', salon.id)
+        if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+        return NextResponse.json({ ok: true })
+      }
+
       /* ── PRODUITS ── */
       case 'add_product': {
         const { data: row, error } = await admin.from('products').insert({ salon_id: salon.id, ...data }).select().single()

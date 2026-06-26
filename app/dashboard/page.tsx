@@ -8,7 +8,7 @@ type Salon = { id:string; name:string; slug:string; email:string; phone:string; 
 type Employee = { id:string; name:string; role:string; color:string; is_active:boolean; sort_order:number }
 type Service = { id:string; name:string; category:string; duration_minutes:number; price_cents:number; is_active:boolean }
 type Client = { id:string; name:string; phone:string; email:string; visit_count:number; total_spent_cents:number; loyalty_points:number; gift_available:boolean; last_visit_at:string; notes:string }
-type Appointment = { id:string; client_id:string; scheduled_at:string; status:string; price_cents:number; final_price_cents:number; paid:boolean; payment_method:string; client:Client|null; service:Service|null; employee:Employee|null }
+type Appointment = { id:string; client_id:string; scheduled_at:string; status:string; price_cents:number; final_price_cents:number; paid:boolean; payment_method:string; duration_minutes:number; source:string; client_note:string|null; client:Client|null; service:Service|null; employee:Employee|null }
 type Product = { id:string; salon_id:string; reference:string; name:string; brand:string; category:string; stock_quantity:number; stock_alert:number; purchase_price_cents:number; sale_price_cents:number; is_active:boolean }
 type Campaign = { id:string; name:string; message:string; status:string; recipients_count:number|null; sent_at:string|null; created_at:string }
 
@@ -167,8 +167,8 @@ export default function Dashboard() {
         sb.from('employees').select('*').eq('salon_id', salonData!.id).order('sort_order'),
         sb.from('services').select('*').eq('salon_id', salonData!.id).order('sort_order'),
         sb.from('clients').select('*').eq('salon_id', salonData!.id).order('created_at',{ascending:false}),
-        sb.from('appointments').select('*, client:clients(name,phone), service:services(name,price_cents), employee:employees(name,color)')
-          .eq('salon_id', salonData!.id).order('scheduled_at',{ascending:true}).limit(200),
+        sb.from('appointments').select('*, client:clients(name,phone,id), service:services(name,price_cents,duration_minutes), employee:employees(name,color)')
+          .eq('salon_id', salonData!.id).order('scheduled_at',{ascending:true}).limit(500),
         sb.from('products').select('*').eq('salon_id', salonData!.id).order('created_at',{ascending:false}).then(r=>r),
         sb.from('sms_campaigns').select('*').eq('salon_id', salonData!.id).order('created_at',{ascending:false}),
       ])
@@ -267,13 +267,69 @@ export default function Dashboard() {
   }
 
   function PageAgenda() {
+    const HOUR_H = 64
+    const H_START = 8
+    const H_END = 21
+    const HOURS = Array.from({length: H_END - H_START}, (_, i) => H_START + i)
+
+    const [viewDate, setViewDate] = useState(() => new Date())
     const [modal, setModal] = useState(false)
+    const [selAppt, setSelAppt] = useState<Appointment|null>(null)
     const [saving, setSaving] = useState(false)
     const [apptForm, setApptForm] = useState({
-      clientName:'', phone:'', email:'',
-      serviceId:'', employeeId:'',
+      clientName:'', phone:'', email:'', serviceId:'', employeeId:'',
       date: new Date().toISOString().split('T')[0], time:'10:00', note:''
     })
+
+    // Drag state en ref pour éviter re-renders pendant le glissement
+    const dragRef = useRef<{id:string; offsetY:number; currentTop:number}|null>(null)
+    const [dragId, setDragId] = useState<string|null>(null)
+    const [dragTop, setDragTop] = useState(0)
+    const containerRef = useRef<HTMLDivElement>(null)
+
+    const isToday = viewDate.toDateString() === new Date().toDateString()
+    const dayAppts = appointments.filter(a =>
+      new Date(a.scheduled_at).toDateString() === viewDate.toDateString() && a.status !== 'cancelled'
+    )
+
+    const timeToY = (d: Date) => ((d.getHours() - H_START) + d.getMinutes() / 60) * HOUR_H
+    const yToDate = (y: number): Date => {
+      const snapped = Math.round(Math.max(0, y / HOUR_H * 60) / 15) * 15
+      const h = H_START + Math.floor(snapped / 60)
+      const m = snapped % 60
+      const d = new Date(viewDate); d.setHours(Math.min(h, H_END - 1), m, 0, 0); return d
+    }
+    const getClientY = (e: React.MouseEvent|React.TouchEvent) =>
+      'touches' in e ? (e.touches[0]?.clientY ?? (e as React.TouchEvent).changedTouches[0]?.clientY) : (e as React.MouseEvent).clientY
+
+    const onDragStart = (e: React.MouseEvent|React.TouchEvent, a: Appointment) => {
+      if (a.paid) return
+      e.preventDefault()
+      const rect = containerRef.current!.getBoundingClientRect()
+      const top = timeToY(new Date(a.scheduled_at))
+      dragRef.current = { id: a.id, offsetY: getClientY(e) - rect.top - top, currentTop: top }
+      setDragId(a.id); setDragTop(top)
+    }
+    const onDragMove = (e: React.MouseEvent|React.TouchEvent) => {
+      if (!dragRef.current || !containerRef.current) return
+      e.preventDefault()
+      const rect = containerRef.current.getBoundingClientRect()
+      const top = Math.max(0, Math.min(getClientY(e) - rect.top - dragRef.current.offsetY, (H_END - H_START - 0.5) * HOUR_H))
+      dragRef.current.currentTop = top; setDragTop(top)
+    }
+    const onDragEnd = async () => {
+      if (!dragRef.current) return
+      const { id, currentTop } = dragRef.current
+      dragRef.current = null; setDragId(null)
+      const newDate = yToDate(currentTop)
+      const orig = appointments.find(a => a.id === id)
+      if (!orig || newDate.toISOString() === orig.scheduled_at) return
+      try {
+        await write('update_appointment', { id, data: { scheduled_at: newDate.toISOString() } })
+        setAppointments(prev => prev.map(a => a.id === id ? {...a, scheduled_at: newDate.toISOString()} : a))
+        addToast('✅ RDV déplacé')
+      } catch(e:any) { addToast('❌ '+e.message) }
+    }
 
     const saveRDV = async () => {
       if (!apptForm.clientName || !apptForm.phone || !apptForm.serviceId) {
@@ -286,102 +342,185 @@ export default function Dashboard() {
           serviceId: apptForm.serviceId, employeeId: apptForm.employeeId || null,
           date: apptForm.date, time: apptForm.time, note: apptForm.note,
         }})
-        setAppointments(a => [appt, ...a])
+        setAppointments(a => [...a, appt])
         setModal(false)
-        setApptForm({ clientName:'', phone:'', email:'', serviceId:'', employeeId:'', date: new Date().toISOString().split('T')[0], time:'10:00', note:'' })
+        setApptForm({ clientName:'', phone:'', email:'', serviceId:'', employeeId:'', date: viewDate.toISOString().split('T')[0], time:'10:00', note:'' })
         addToast('✅ RDV enregistré !')
-      } catch (e:any) { addToast('❌ '+e.message) }
+      } catch(e:any) { addToast('❌ '+e.message) }
       setSaving(false)
     }
 
-    const now = new Date()
-    const todayStr = now.toDateString()
-    // RDV à venir (aujourd'hui + futur), triés chronologiquement, non annulés
-    const upcoming = appointments
-      .filter(a => new Date(a.scheduled_at) >= new Date(now.getFullYear(), now.getMonth(), now.getDate()) && a.status !== 'cancelled')
-      .sort((a,b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
-
-    // Grouper par jour
-    const byDay: Record<string, Appointment[]> = {}
-    upcoming.forEach(a => {
-      const key = new Date(a.scheduled_at).toDateString()
-      if (!byDay[key]) byDay[key] = []
-      byDay[key].push(a)
-    })
-    const dayKeys = Object.keys(byDay)
-
-    const dayLabel = (key: string) => {
-      const d = new Date(key)
-      if (key === todayStr) return `Aujourd'hui — ${d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}`
-      const tomorrow = new Date(now); tomorrow.setDate(now.getDate()+1)
-      if (key === tomorrow.toDateString()) return `Demain — ${d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}`
-      return d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})
+    const cancelAppt = async (id: string) => {
+      if (!confirm('Annuler ce RDV ?')) return
+      try {
+        await write('cancel_appointment', { id, data: {} })
+        setAppointments(prev => prev.map(a => a.id === id ? {...a, status:'cancelled'} : a))
+        setSelAppt(null); addToast('✅ RDV annulé')
+      } catch(e:any) { addToast('❌ '+e.message) }
     }
 
-    const ApptRow = ({a}:{a:Appointment}) => (
-      <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 0',borderBottom:'1px solid var(--b1)'}}>
-        <span style={{fontSize:11,color:'var(--t2)',width:38,fontWeight:500,flexShrink:0}}>{new Date(a.scheduled_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</span>
-        <div style={{width:28,height:28,borderRadius:'50%',background:'#c8a96e22',color:'#c8a96e',display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,fontWeight:700,flexShrink:0}}>{ini(a.client?.name||'?')}</div>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:13,fontWeight:500}}>{a.client?.name||'Client'}</div>
-          <div style={{fontSize:10,color:'var(--t3)'}}>{a.service?.name||'Prestation'} · {a.employee?.name||''}</div>
+    const prevDay = () => { const d = new Date(viewDate); d.setDate(d.getDate()-1); setViewDate(d) }
+    const nextDay = () => { const d = new Date(viewDate); d.setDate(d.getDate()+1); setViewDate(d) }
+
+    const dayLabel = viewDate.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'2-digit'})
+      .replace(/^\w/, c => c.toUpperCase())
+
+    return (
+      <div style={{display:'flex',flexDirection:'column',height:'calc(100vh - 56px)',margin:'-18px',overflow:'hidden'}}>
+        {/* ── Barre du jour ── */}
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 16px',background:'var(--bg)',borderBottom:'1px solid var(--b1)',flexShrink:0}}>
+          <button onClick={prevDay} style={{background:'none',border:'none',fontSize:24,cursor:'pointer',color:'var(--t1)',padding:'0 8px',lineHeight:1}}>‹</button>
+          <div style={{textAlign:'center'}}>
+            <div style={{fontWeight:700,fontSize:14,textTransform:'capitalize'}}>{dayLabel}</div>
+            <div style={{fontSize:11,color:'#2196f3',marginTop:1}}>{salon?.name}</div>
+          </div>
+          <button onClick={nextDay} style={{background:'none',border:'none',fontSize:24,cursor:'pointer',color:'var(--t1)',padding:'0 8px',lineHeight:1}}>›</button>
         </div>
-        <span style={{fontSize:12,fontWeight:700}}>{fmt(a.final_price_cents||a.price_cents)}</span>
-        {a.paid
-          ? <span className="badge badge-ok">Payé ✓ {a.payment_method?`(${a.payment_method})`:''}</span>
-          : <Btn style={{fontSize:9,padding:'3px 8px',background:'var(--green)'}} onClick={()=>setPayModal(a)}>💰 Encaisser</Btn>
-        }
-        <Bge status={a.status} />
+
+        {/* ── Timeline ── */}
+        <div style={{flex:1,overflow:'auto',background:'var(--s1)'}}
+          onMouseMove={dragId ? onDragMove : undefined}
+          onMouseUp={dragId ? onDragEnd : undefined}
+          onMouseLeave={dragId ? onDragEnd : undefined}
+          onTouchMove={dragId ? onDragMove : undefined}
+          onTouchEnd={dragId ? onDragEnd : undefined}
+        >
+          <div ref={containerRef} style={{position:'relative',height:(H_END-H_START)*HOUR_H+'px',minHeight:'100%'}}>
+
+            {/* Lignes horaires */}
+            {HOURS.map(h => (
+              <div key={h} style={{position:'absolute',top:(h-H_START)*HOUR_H,left:0,right:0,display:'flex',alignItems:'flex-start',pointerEvents:'none'}}>
+                <span style={{width:46,fontSize:10,color:'var(--t3)',textAlign:'right',paddingRight:8,paddingTop:3,flexShrink:0,fontVariantNumeric:'tabular-nums'}}>{String(h).padStart(2,'0')}:00</span>
+                <div style={{flex:1,borderTop:'1px solid var(--b1)'}} />
+              </div>
+            ))}
+
+            {/* Demi-heures */}
+            {HOURS.map(h => (
+              <div key={`h${h}`} style={{position:'absolute',top:(h-H_START)*HOUR_H+HOUR_H/2,left:46,right:0,borderTop:'1px dashed var(--b1)',opacity:.5,pointerEvents:'none'}} />
+            ))}
+
+            {/* Ligne "maintenant" */}
+            {isToday && (() => {
+              const top = timeToY(new Date())
+              return <div style={{position:'absolute',left:46,right:0,top,zIndex:10,pointerEvents:'none'}}>
+                <div style={{height:2,background:'#f44336',position:'relative'}}>
+                  <div style={{width:8,height:8,borderRadius:'50%',background:'#f44336',position:'absolute',left:-4,top:-3}} />
+                </div>
+              </div>
+            })()}
+
+            {/* RDV */}
+            {dayAppts.map(a => {
+              const start = new Date(a.scheduled_at)
+              const dur = a.duration_minutes || a.service?.duration_minutes || 30
+              const isDragging = dragId === a.id
+              const top = isDragging ? dragTop : timeToY(start)
+              const height = Math.max(28, (dur / 60) * HOUR_H - 2)
+              const color = a.employee?.color || '#2196f3'
+              const end = new Date(start.getTime() + dur * 60000)
+              const timeStr = `${start.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} - ${end.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`
+
+              return (
+                <div key={a.id}
+                  style={{
+                    position:'absolute', left:52, right:6, top, height,
+                    background: a.paid ? '#4caf50' : color,
+                    borderRadius:7, padding:'3px 8px',
+                    cursor: a.paid ? 'pointer' : 'grab',
+                    userSelect:'none', touchAction:'none',
+                    opacity: isDragging ? 0.75 : 1,
+                    boxShadow: isDragging ? '0 6px 20px rgba(0,0,0,.25)' : '0 1px 3px rgba(0,0,0,.15)',
+                    zIndex: isDragging ? 100 : 2,
+                    overflow:'hidden',
+                  }}
+                  onMouseDown={e => onDragStart(e, a)}
+                  onTouchStart={e => onDragStart(e, a)}
+                  onClick={() => !dragId && setSelAppt(a)}
+                >
+                  <div style={{fontSize:10,fontWeight:700,color:'#fff',lineHeight:1.3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                    {a.source==='online'&&<span style={{opacity:.8}}>@ </span>}
+                    {a.paid&&<span style={{opacity:.8}}>🔒 </span>}
+                    {timeStr} {a.client?.name||''} {a.service?.name||''}
+                    {a.employee?.name&&<span style={{opacity:.7}}> · {a.employee.name}</span>}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* ── Barre du bas ── */}
+        <div style={{display:'flex',justifyContent:'space-around',alignItems:'center',padding:'8px 0',background:'var(--bg)',borderTop:'1px solid var(--b1)',flexShrink:0}}>
+          <button onClick={()=>window.open(`/book/${salon?.slug}`,'_blank')} style={{background:'none',border:'none',fontSize:11,color:'var(--t3)',cursor:'pointer',display:'flex',flexDirection:'column' as const,alignItems:'center',gap:2,padding:'4px 16px'}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            Ma page
+          </button>
+          <button onClick={()=>{setApptForm(f=>({...f,date:viewDate.toISOString().split('T')[0]}));setModal(true)}} style={{width:52,height:52,borderRadius:'50%',background:'var(--green)',border:'none',color:'#fff',fontSize:28,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 3px 10px rgba(0,0,0,.2)'}}>+</button>
+          <button onClick={()=>{setViewDate(new Date())}} style={{background:'none',border:'none',fontSize:11,color: isToday?'#2196f3':'var(--t3)',cursor:'pointer',display:'flex',flexDirection:'column' as const,alignItems:'center',gap:2,padding:'4px 16px',fontWeight: isToday?700:400}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Aujourd'hui
+          </button>
+        </div>
+
+        {/* ── Modal détail RDV ── */}
+        {selAppt&&<div className="overlay" onClick={e=>{if(e.target===e.currentTarget)setSelAppt(null)}}>
+          <div className="modal">
+            <div className="modal-ttl">{selAppt.client?.name||'Client'}</div>
+            <div style={{fontSize:11,color:'var(--t3)',marginBottom:14}}>
+              {new Date(selAppt.scheduled_at).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})} · {new Date(selAppt.scheduled_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} · {selAppt.duration_minutes||selAppt.service?.duration_minutes||30}min
+            </div>
+            {[
+              ['Prestation', selAppt.service?.name||'-'],
+              ['Collaborateur', selAppt.employee?.name||'Non assigné'],
+              ['Téléphone', selAppt.client?.phone||'-'],
+              ['Prix', fmt(selAppt.final_price_cents||selAppt.price_cents)],
+              ['Source', selAppt.source==='online'?'🌐 En ligne':'✏ Manuel'],
+              ['Note', selAppt.client_note||'-'],
+            ].map(([l,v])=>(
+              <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:'1px solid var(--b1)',fontSize:13}}>
+                <span style={{color:'var(--t2)'}}>{l}</span><span style={{fontWeight:500}}>{v}</span>
+              </div>
+            ))}
+            <div style={{display:'flex',gap:8,marginTop:14,flexWrap:'wrap' as const}}>
+              {!selAppt.paid&&<Btn onClick={()=>{setPayModal(selAppt);setSelAppt(null)}} style={{background:'var(--green)'}}>💰 Encaisser</Btn>}
+              {!selAppt.paid&&<Btn ghost danger onClick={()=>cancelAppt(selAppt.id)}>Annuler le RDV</Btn>}
+              <Btn ghost onClick={()=>setSelAppt(null)}>Fermer</Btn>
+            </div>
+          </div>
+        </div>}
+
+        {/* ── Modal nouveau RDV ── */}
+        {modal&&<div className="overlay"><div className="modal">
+          <div className="modal-ttl">+ Nouveau rendez-vous</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+            <FRow label="Nom du client *"><Inp placeholder="Marie Dupont" value={apptForm.clientName} onChange={v=>setApptForm(f=>({...f,clientName:v}))} /></FRow>
+            <FRow label="Téléphone *"><Inp placeholder="06 12 34 56 78" type="tel" value={apptForm.phone} onChange={v=>setApptForm(f=>({...f,phone:v}))} /></FRow>
+            <FRow label="Prestation *">
+              <select className="input" value={apptForm.serviceId} onChange={e=>setApptForm(f=>({...f,serviceId:e.target.value}))}>
+                <option value="">Sélectionner…</option>
+                {services.map(s=><option key={s.id} value={s.id}>{s.name} — {fmt(s.price_cents)}</option>)}
+              </select>
+            </FRow>
+            <FRow label="Collaborateur">
+              <select className="input" value={apptForm.employeeId} onChange={e=>setApptForm(f=>({...f,employeeId:e.target.value}))}>
+                <option value="">Premier disponible</option>
+                {employees.filter(e=>e.is_active).map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
+            </FRow>
+            <FRow label="Date"><input type="date" className="input" value={apptForm.date} onChange={e=>setApptForm(f=>({...f,date:e.target.value}))} /></FRow>
+            <FRow label="Heure"><input type="time" className="input" value={apptForm.time} onChange={e=>setApptForm(f=>({...f,time:e.target.value}))} /></FRow>
+          </div>
+          <FRow label="Note (optionnel)"><Inp placeholder="Instructions…" value={apptForm.note} onChange={v=>setApptForm(f=>({...f,note:v}))} /></FRow>
+          <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:14}}>
+            <Btn ghost onClick={()=>setModal(false)}>Annuler</Btn>
+            <Btn onClick={saveRDV} disabled={saving||!apptForm.clientName||!apptForm.phone||!apptForm.serviceId}>
+              {saving?'Enregistrement…':'Enregistrer le RDV'}
+            </Btn>
+          </div>
+        </div></div>}
       </div>
     )
-
-    return <>
-      <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginBottom:12}}>
-        <Btn ghost onClick={()=>window.open(`/book/${salon?.slug}`,'_blank')}>Voir ma page ↗</Btn>
-        <Btn onClick={()=>setModal(true)}>+ Nouveau RDV</Btn>
-      </div>
-
-      {dayKeys.length === 0
-        ? <Card><div style={{textAlign:'center',padding:'32px 0',color:'var(--t3)',fontSize:14}}>
-            <div style={{fontSize:32,marginBottom:8}}>📅</div>Aucun RDV à venir.
-            <br/><span onClick={()=>setModal(true)} style={{color:'var(--t1)',fontWeight:600,cursor:'pointer',textDecoration:'underline'}}>Ajouter manuellement</span>
-          </div></Card>
-        : dayKeys.map(key => (
-          <Card key={key} style={{marginBottom:12}}>
-            <CardHd title={dayLabel(key)} />
-            {byDay[key].map(a => <ApptRow key={a.id} a={a} />)}
-          </Card>
-        ))
-      }
-      {modal&&<div className="overlay"><div className="modal">
-        <div className="modal-ttl">+ Nouveau rendez-vous</div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-          <FRow label="Nom du client *"><Inp placeholder="Marie Dupont" value={apptForm.clientName} onChange={v=>setApptForm(f=>({...f,clientName:v}))} /></FRow>
-          <FRow label="Téléphone *"><Inp placeholder="06 12 34 56 78" type="tel" value={apptForm.phone} onChange={v=>setApptForm(f=>({...f,phone:v}))} /></FRow>
-          <FRow label="Prestation *">
-            <select className="input" value={apptForm.serviceId} onChange={e=>setApptForm(f=>({...f,serviceId:e.target.value}))}>
-              <option value="">Sélectionner…</option>
-              {services.map(s=><option key={s.id} value={s.id}>{s.name} — {fmt(s.price_cents)}</option>)}
-            </select>
-          </FRow>
-          <FRow label="Collaborateur">
-            <select className="input" value={apptForm.employeeId} onChange={e=>setApptForm(f=>({...f,employeeId:e.target.value}))}>
-              <option value="">Premier disponible</option>
-              {employees.filter(e=>e.is_active).map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
-            </select>
-          </FRow>
-          <FRow label="Date"><input type="date" className="input" value={apptForm.date} onChange={e=>setApptForm(f=>({...f,date:e.target.value}))} /></FRow>
-          <FRow label="Heure"><input type="time" className="input" value={apptForm.time} onChange={e=>setApptForm(f=>({...f,time:e.target.value}))} /></FRow>
-        </div>
-        <FRow label="Note (optionnel)"><Inp placeholder="Instructions…" value={apptForm.note} onChange={v=>setApptForm(f=>({...f,note:v}))} /></FRow>
-        <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:14}}>
-          <Btn ghost onClick={()=>setModal(false)}>Annuler</Btn>
-          <Btn onClick={saveRDV} disabled={saving||!apptForm.clientName||!apptForm.phone||!apptForm.serviceId}>
-            {saving?'Enregistrement…':'Enregistrer le RDV'}
-          </Btn>
-        </div>
-      </div></div>}
-    </>
   }
 
   function PageClients() {
