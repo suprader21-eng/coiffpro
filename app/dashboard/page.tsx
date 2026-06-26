@@ -874,6 +874,9 @@ export default function Dashboard() {
   function PageParametres() {
     const [f, setF] = useState({ name:salon?.name||'', email:salon?.email||'', phone:salon?.phone||'' })
     const [saving, setSaving] = useState(false)
+    const [emailModal, setEmailModal] = useState(false)
+    const [newEmail, setNewEmail] = useState('')
+    const [emailSaving, setEmailSaving] = useState(false)
 
     const save = async () => {
       setSaving(true)
@@ -885,16 +888,49 @@ export default function Dashboard() {
       setSaving(false)
     }
 
+    const changeEmail = async () => {
+      if (!newEmail || !newEmail.includes('@')) { addToast('⚠ Email invalide'); return }
+      setEmailSaving(true)
+      try {
+        // Mettre à jour l'email dans Supabase Auth
+        const { error } = await sb.auth.updateUser({ email: newEmail })
+        if (error) throw error
+        // Mettre à jour l'email dans la table salons immédiatement
+        await write('update_salon', { data: { email: newEmail } })
+        setSalon(s=>s?{...s,email:newEmail}:s)
+        setF(p=>({...p,email:newEmail}))
+        setEmailModal(false)
+        setNewEmail('')
+        addToast('📬 Confirme le changement depuis tes deux boîtes mail')
+      } catch(e:any) { addToast('❌ '+(e.message||'Erreur')) }
+      setEmailSaving(false)
+    }
+
     return <>
       <div className="g2">
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
           <Card>
             <CardHd title="Informations du compte" />
             <FRow label="Nom du salon"><Inp value={f.name} onChange={v=>setF(p=>({...p,name:v}))} /></FRow>
-            <FRow label="Email"><Inp value={f.email} type="email" onChange={()=>{}} /></FRow>
+            <FRow label="Email">
+              <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                <Inp value={f.email} type="email" onChange={()=>{}} style={{flex:1,background:'var(--s1)',color:'var(--t2)'}} />
+                <Btn ghost onClick={()=>{setNewEmail('');setEmailModal(true)}} style={{flexShrink:0,fontSize:11}}>Modifier</Btn>
+              </div>
+            </FRow>
             <FRow label="Téléphone"><Inp value={f.phone} onChange={v=>setF(p=>({...p,phone:v}))} /></FRow>
             <Btn onClick={save} disabled={saving} style={{marginTop:4}}>{saving?'Sauvegarde…':'Sauvegarder'}</Btn>
           </Card>
+          {emailModal&&<div className="overlay"><div className="modal">
+            <div className="modal-ttl">Changer l'adresse email</div>
+            <div style={{fontSize:12,color:'var(--t3)',marginBottom:12}}>Un email de confirmation sera envoyé à la nouvelle adresse. Tu devras confirmer depuis les deux boîtes mail.</div>
+            <FRow label="Nouvelle adresse email"><Inp type="email" placeholder="nouveau@email.fr" value={newEmail} onChange={setNewEmail} /></FRow>
+            <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:14}}>
+              <Btn ghost onClick={()=>setEmailModal(false)}>Annuler</Btn>
+              <Btn onClick={changeEmail} disabled={emailSaving||!newEmail}>{emailSaving?'Envoi…':'Confirmer'}</Btn>
+            </div>
+          </div></div>}
+
           <Card>
             <CardHd title="Abonnement" />
             <div style={{background:'var(--s1)',border:'1px solid var(--b1)',borderRadius:9,padding:12,marginBottom:12}}>
