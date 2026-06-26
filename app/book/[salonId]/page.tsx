@@ -39,6 +39,7 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
   const [reviews, setReviews]     = useState<Review[]>([])
   const [loading, setLoading]     = useState(true)
   const [notFound, setNotFound]   = useState(false)
+  const [descExpanded, setDescExpanded] = useState(false)
 
   /* Client auth state */
   const [clientUser, setClientUser]   = useState<any>(null)
@@ -714,43 +715,61 @@ export default function SalonPage({ params }:{ params:{ salonId:string } }) {
         @keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
         .fi{animation:fi .5s ease both}
         @media(prefers-color-scheme:dark){.salon-logo{filter:brightness(0) invert(1)}}
+        @media(max-width:640px){
+          .hero-grid{grid-template-columns:1fr!important;gap:20px!important;}
+          .hero-hours{min-width:unset!important;width:100%!important;}
+          .hero-btns{flex-direction:column!important;}
+          .hero-btns a,.hero-btns button{width:100%!important;text-align:center!important;justify-content:center!important;display:flex!important;align-items:center!important;}
+          .nav-call{display:none!important;}
+        }
       `}</style>
       {AuthModal}
 
       {/* Nav */}
-      <nav style={{position:'sticky',top:0,zIndex:50,background:'rgba(255,255,255,.95)',backdropFilter:'blur(12px)',borderBottom:'1px solid #f0f0f0',height:58,display:'flex',alignItems:'center',padding:'0 24px',gap:16}}>
+      <nav style={{position:'sticky',top:0,zIndex:50,background:'rgba(255,255,255,.95)',backdropFilter:'blur(12px)',borderBottom:'1px solid #f0f0f0',height:58,display:'flex',alignItems:'center',padding:'0 16px',gap:10}}>
         {(salon as any).logo_url
-          ? <img src={(salon as any).logo_url} alt={salon.name} style={{height:32,maxWidth:100,objectFit:'contain'}} className="salon-logo" />
-          : <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:21,fontWeight:700}}>✂ {salon.name}</div>
+          ? <img src={(salon as any).logo_url} alt={salon.name} style={{height:30,maxWidth:90,objectFit:'contain'}} className="salon-logo" />
+          : <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:700,flexShrink:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',minWidth:0}}>✂ {salon.name}</div>
         }
-        <div style={{marginLeft:'auto',display:'flex',gap:8,alignItems:'center'}}>
-          {salon.phone&&<a href={`tel:${salon.phone}`} style={{fontSize:12,color:'#666',padding:'6px 12px',border:'1px solid #f0f0f0',borderRadius:8}}>Appeler</a>}
+        <div style={{marginLeft:'auto',display:'flex',gap:6,alignItems:'center',flexShrink:0}}>
+          {salon.phone&&<a href={`tel:${salon.phone}`} className="nav-call" style={{fontSize:12,color:'#666',padding:'6px 10px',border:'1px solid #f0f0f0',borderRadius:8}}>Appeler</a>}
           {clientUser
-            ? <button onClick={()=>setView('account')} style={{background:`${T}15`,color:T,border:'none',borderRadius:9,padding:'8px 14px',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>👤 Mon compte</button>
-            : <button onClick={()=>setAuthView('choice')} style={{background:'#f5f5f5',color:'#555',border:'none',borderRadius:9,padding:'8px 14px',fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>Connexion</button>
+            ? <button onClick={()=>setView('account')} style={{background:`${T}15`,color:T,border:'none',borderRadius:9,padding:'7px 12px',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>👤</button>
+            : <button onClick={()=>setAuthView('choice')} style={{background:'#f5f5f5',color:'#555',border:'none',borderRadius:9,padding:'7px 12px',fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>Connexion</button>
           }
-          <button onClick={()=>setView('booking')} style={{background:T,color:'#fff',border:'none',borderRadius:9,padding:'9px 18px',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>Prendre RDV</button>
+          <button onClick={()=>setView('booking')} style={{background:T,color:'#fff',border:'none',borderRadius:9,padding:'9px 16px',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap'}}>Prendre RDV</button>
         </div>
       </nav>
 
       {/* Hero */}
-      <div style={{background:'linear-gradient(180deg,#fafafa 0%,#fff 100%)',borderBottom:'1px solid #f0f0f0',padding:'52px 24px 44px'}}>
-        <div style={{maxWidth:960,margin:'0 auto',display:'grid',gridTemplateColumns:'1fr auto',gap:40,alignItems:'start',flexWrap:'wrap' as const}}>
+      <div style={{background:'linear-gradient(180deg,#fafafa 0%,#fff 100%)',borderBottom:'1px solid #f0f0f0',padding:'40px 20px 36px'}}>
+        <div className="hero-grid" style={{maxWidth:960,margin:'0 auto',display:'grid',gridTemplateColumns:'1fr auto',gap:40,alignItems:'start'}}>
           <div className="fi">
-            <h1 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'clamp(34px,6vw,60px)',fontWeight:700,lineHeight:1,letterSpacing:'-.02em',marginBottom:14}}>{salon.name}</h1>
-            {salon.description&&<p style={{fontSize:15,color:'#666',lineHeight:1.7,maxWidth:500,marginBottom:20}}>{salon.description}</p>}
-            <div style={{display:'flex',gap:8,flexWrap:'wrap' as const,marginBottom:24}}>
+            <h1 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'clamp(28px,6vw,60px)',fontWeight:700,lineHeight:1.1,letterSpacing:'-.02em',marginBottom:12}}>{salon.name}</h1>
+            {salon.description&&(
+              <div style={{marginBottom:16}}>
+                <p style={{fontSize:14,color:'#666',lineHeight:1.7,maxWidth:500,overflow:'hidden',display:'-webkit-box',WebkitLineClamp:descExpanded?undefined:3,WebkitBoxOrient:'vertical' as any}}>
+                  {salon.description}
+                </p>
+                {salon.description.length>180&&(
+                  <button onClick={()=>setDescExpanded(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',color:T,fontSize:12,fontWeight:600,fontFamily:'inherit',padding:'4px 0',marginTop:2}}>
+                    {descExpanded?'Voir moins ↑':'Voir plus ↓'}
+                  </button>
+                )}
+              </div>
+            )}
+            <div style={{display:'flex',gap:8,flexWrap:'wrap' as const,marginBottom:20}}>
               {salon.address&&<span style={{fontSize:12,background:'#fff',border:'1px solid #f0f0f0',borderRadius:100,padding:'6px 12px',color:'#666'}}>📍 {salon.address}, {salon.city}</span>}
               {employees.length>0&&<span style={{fontSize:12,background:'#fff',border:'1px solid #f0f0f0',borderRadius:100,padding:'6px 12px',color:'#666'}}>{employees.length} coiffeur{employees.length>1?'s':''}</span>}
             </div>
-            <div style={{display:'flex',gap:10}}>
+            <div className="hero-btns" style={{display:'flex',gap:10}}>
               <button onClick={()=>setView('booking')} style={{background:T,color:'#fff',border:'none',borderRadius:11,padding:'13px 26px',fontSize:14,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>Réserver un créneau →</button>
-              {salon.phone&&<a href={`tel:${salon.phone}`} style={{display:'flex',alignItems:'center',padding:'12px 18px',background:'#fff',border:'1px solid #e8e8e8',borderRadius:11,fontSize:13,fontWeight:500,color:'#333'}}>📞</a>}
+              {salon.phone&&<a href={`tel:${salon.phone}`} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'12px 18px',background:'#fff',border:'1px solid #e8e8e8',borderRadius:11,fontSize:13,fontWeight:500,color:'#333'}}>📞 Appeler</a>}
             </div>
           </div>
           {/* Horaires */}
           {hours.length>0&&(
-            <div style={{background:'#fff',border:'1px solid #f0f0f0',borderRadius:14,padding:'18px 20px',minWidth:200,boxShadow:'0 4px 20px rgba(0,0,0,.05)',flexShrink:0}}>
+            <div className="hero-hours" style={{background:'#fff',border:'1px solid #f0f0f0',borderRadius:14,padding:'18px 20px',minWidth:200,boxShadow:'0 4px 20px rgba(0,0,0,.05)',flexShrink:0}}>
               <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase' as const,letterSpacing:'.08em',color:'#bbb',marginBottom:12}}>Horaires</div>
               {hours.map((h,i)=>(
                 <div key={h.day_name} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:i<hours.length-1?'1px solid #f5f5f5':undefined,fontSize:12}}>

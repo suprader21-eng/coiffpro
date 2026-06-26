@@ -407,7 +407,7 @@ export default function Dashboard() {
     const dayLabel = viewDate.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'2-digit'}).replace(/^\w/,c=>c.toUpperCase())
 
     return (
-      <div style={{display:'flex',flexDirection:'column',height:'calc(100vh - 56px)',margin:'-18px',overflow:'hidden',background:'var(--bg)'}}>
+      <div style={{display:'flex',flexDirection:'column',height:'100%',overflow:'hidden',background:'var(--bg)'}}>
 
         {/* ── Header jour ── */}
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 12px',borderBottom:'1px solid var(--b1)',flexShrink:0}}>
@@ -447,22 +447,21 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ── En-têtes colonnes (uniquement vue "Tous" multi-colonnes) ── */}
-        {cols.length > 0 && !filterEmp && (
-          <div style={{display:'flex',flexShrink:0,borderBottom:'1px solid var(--b1)',background:'var(--s1)'}}>
-            <div style={{width:TIME_W,flexShrink:0}} />
-            {displayCols.map((emp,i) => (
-              <div key={emp.id} style={{flex:1,textAlign:'center',padding:'5px 4px',borderLeft:i>0?'1px solid var(--b1)':'none',display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>
-                <div style={{width:7,height:7,borderRadius:'50%',background:emp.color||'#c8a96e',flexShrink:0}} />
-                <span style={{fontSize:11,fontWeight:600,color:'var(--t2)'}}>{emp.name}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* ── Timeline scrollable ── */}
-        <div style={{flex:1,overflowY:'auto',overflowX:'hidden',position:'relative'}}>
-          <div style={{display:'flex',height:(H_END-H_START)*HOUR_H+'px'}}>
+        {/* ── Timeline scrollable (+ en-têtes sticky intégrés en multi-col) ── */}
+        <div style={{flex:1,overflowY:'auto',overflowX: displayCols.length>1?'auto':'hidden',position:'relative'}}>
+          {/* En-têtes colonnes sticky — à l'intérieur du scroll pour suivre horizontalement */}
+          {cols.length > 0 && !filterEmp && (
+            <div style={{display:'flex',flexShrink:0,borderBottom:'1px solid var(--b1)',background:'var(--s1)',position:'sticky',top:0,zIndex:10,minWidth:displayCols.length>1?TIME_W+displayCols.length*120:undefined}}>
+              <div style={{width:TIME_W,flexShrink:0}} />
+              {displayCols.map((emp,i) => (
+                <div key={emp.id} style={{flex:1,minWidth:displayCols.length>1?120:undefined,textAlign:'center',padding:'5px 4px',borderLeft:i>0?'1px solid var(--b1)':'none',display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>
+                  <div style={{width:7,height:7,borderRadius:'50%',background:emp.color||'#c8a96e',flexShrink:0}} />
+                  <span style={{fontSize:11,fontWeight:600,color:'var(--t2)'}}>{emp.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{display:'flex',height:(H_END-H_START)*HOUR_H+'px',minWidth:displayCols.length>1?TIME_W+displayCols.length*120:undefined}}>
 
             {/* Axe horaire */}
             <div style={{width:TIME_W,flexShrink:0,position:'relative'}}>
@@ -498,7 +497,7 @@ export default function Dashboard() {
               {displayCols.map((emp, ci) => {
                 const empAppts = getColAppts(emp.id)
                 return (
-                  <div key={emp.id} style={{flex:1,position:'relative',borderLeft: ci>0?'1px solid var(--b1)':'none',cursor:'cell'}}
+                  <div key={emp.id} style={{flex:1,minWidth:displayCols.length>1?120:undefined,position:'relative',borderLeft: ci>0?'1px solid var(--b1)':'none',cursor:'cell'}}
                     onClick={e => onColClick(e, emp.id)}
                   >
                     {empAppts.map(a => {
@@ -1795,7 +1794,7 @@ export default function Dashboard() {
           <div style={{height:46,background:'var(--bg)',borderBottom:'1px solid var(--b1)',display:'flex',alignItems:'center',padding:'0 16px',justifyContent:'space-between',flexShrink:0}}>
             <span style={{fontSize:14,fontWeight:600}}>{PAGE_TITLES[page]||page}</span>
           </div>
-          <div style={{flex:1,padding:'14px 16px',overflowY:'auto'}}>{renderPage()}</div>
+          <div style={{flex:1,overflow:page==='agenda'?'hidden':'auto',padding:page==='agenda'?0:'14px 16px'}}>{renderPage()}</div>
         </main>
       </div>
 
