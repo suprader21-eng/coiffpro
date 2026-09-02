@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { sendConfirmation } from '@/lib/sms'
+import { sendPush } from '@/lib/push-server'
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
     const db = getSupabaseAdmin()
 
     const { data: salon } = await db.from('salons')
-      .select('id, name, phone, google_link, notification_settings')
+      .select('id, name, phone, google_link, notification_settings, user_id')
       .eq('id', salonId).single()
     if (!salon) return NextResponse.json({ error: 'Salon introuvable' }, { status: 404 })
 
@@ -86,6 +87,17 @@ export async function POST(req: NextRequest) {
         message: `Confirmation RDV ${date} ${time}`,
         status: 'sent',
       })
+    }
+
+    // Push notification au coiffeur (ne bloque pas si OneSignal non configuré)
+    const ownerUserId = (salon as any).user_id as string | null
+    if (ownerUserId) {
+      sendPush({
+        userIds: [ownerUserId],
+        title: '📅 Nouvelle réservation',
+        body: `${firstName} ${lastName || ''} — ${service?.name || 'Prestation'} le ${date} à ${time}`,
+        data: { appointmentId: appointment.id, salonId },
+      }).catch(() => {})
     }
 
     return NextResponse.json({

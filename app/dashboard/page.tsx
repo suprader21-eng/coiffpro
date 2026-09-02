@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { getBrowserClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { usePushNotifications } from '@/hooks/usePushNotifications'
 
 /* ─── Types ─── */
 type Salon = { id:string; name:string; slug:string; email:string; phone:string; address:string; city:string; description:string; instagram:string; google_link:string; google_maps_embed:string; primary_color:string; accent_color:string; status:string; plan_price:number; trial_ends_at:string; sumup_merchant_code:string; sumup_access_token:string; admin_message:string; custom_domain:string; logo_url:string; notification_settings:Record<string,boolean>|null; stripe_customer_id:string }
@@ -97,6 +98,8 @@ export default function Dashboard() {
   const [page, setPage] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [salon, setSalon] = useState<Salon|null>(null)
+  const [userId, setUserId] = useState<string|null>(null)
+  usePushNotifications(userId)
   const [employees, setEmployees] = useState<Employee[]>([])
   const [services, setServices] = useState<Service[]>([])
   const [clients, setClients] = useState<Client[]>([])
@@ -132,6 +135,7 @@ export default function Dashboard() {
       const { data: { session } } = await sb.auth.getSession()
       if (!session?.user) { router.push('/login'); return }
       tokenRef.current = session.access_token
+      setUserId(session.user.id)
 
       const userEmail = session.user.email
 
