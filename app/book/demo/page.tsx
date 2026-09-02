@@ -417,7 +417,7 @@ export default function DemoPage() {
         </div>
         <div style={{maxWidth:960,margin:'16px auto 0',paddingTop:14,borderTop:'1px solid #1e1e1e',display:'flex',justifyContent:'space-between',fontSize:11,color:'rgba(255,255,255,.18)',flexWrap:'wrap' as const,gap:4}}>
           <span>© {new Date().getFullYear()} {S.name} · Propulsé par <strong style={{color:'rgba(255,255,255,.3)'}}>CoiffPro</strong></span>
-          <a href="/accueil" style={{color:'rgba(255,255,255,.18)'}}>Créer votre page →</a>
+          <a href="/" style={{color:'rgba(255,255,255,.18)'}}>Créer votre page →</a>
         </div>
       </footer>
     </div>
