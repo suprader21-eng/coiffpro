@@ -1088,7 +1088,7 @@ export default function Dashboard() {
                   <Btn onClick={()=>window.open(`/barbier/${salon?.slug}`,'_blank')}>Ouvrir ↗</Btn>
                 </div>
                 <div style={{borderRadius:10,overflow:'hidden',border:'1px solid var(--b1)',height:400,background:'var(--s1)'}}>
-                  <iframe src={`/barbier/${salon?.slug}`} style={{width:'100%',height:'100%',border:'none',transform:'scale(0.75)',transformOrigin:'top left',width:'133%',height:'133%'}} title="Aperçu vitrine" />
+                  <iframe src={`/barbier/${salon?.slug}`} style={{width:'133%',height:'133%',border:'none',transform:'scale(0.75)',transformOrigin:'top left'}} title="Aperçu vitrine" />
                 </div>
               </>
             })()}
