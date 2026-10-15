@@ -114,7 +114,15 @@ export default function Dashboard() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState('')
-  const [theme, setTheme] = useState('light')
+  const [theme, setTheme] = useState<'light'|'dark'>(() => {
+    if (typeof window === 'undefined') return 'light'
+    try { return (localStorage.getItem('cp_pro_theme') as 'light'|'dark') || 'light' } catch { return 'light' }
+  })
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    try { localStorage.setItem('cp_pro_theme', theme) } catch {}
+  }, [theme])
 
   const addToast = useCallback((msg:string) => {
     setToast(msg); setTimeout(()=>setToast(''),3500)
@@ -204,8 +212,8 @@ export default function Dashboard() {
   const lowStock = products.filter(p=>p.is_active&&p.stock_quantity<=p.stock_alert)
 
   if (loading) return (
-    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'Outfit',system-ui,sans-serif",background:'#fafafa'}}>
-      <div style={{textAlign:'center'}}><div style={{fontSize:32,marginBottom:12}}>✂</div><div style={{fontSize:14,color:'#888'}}>Chargement…</div></div>
+    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'Outfit',system-ui,sans-serif",background:'var(--bg,#fafafa)'}}>
+      <div style={{textAlign:'center'}}><div style={{fontSize:32,marginBottom:12}}>✂</div><div style={{fontSize:14,color:'var(--t2,#888)'}}>Chargement…</div></div>
     </div>
   )
 
@@ -219,16 +227,16 @@ export default function Dashboard() {
         <SC label="Total clients" value={clients.length} sub="dans votre CRM" up />
         <SC label="Cadeaux fidélité" value={gifts} sub="à remettre" up={gifts>0} />
       </div>
-      {salon?.admin_message&&<div style={{background:'#ede9fe',border:'1px solid #c4b5fd',borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10}}>
-        <span>📣</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:'#7c3aed'}}>Message de CoiffPro</div><div style={{fontSize:12,color:'#5b21b6',marginTop:2}}>{salon.admin_message}</div></div>
+      {salon?.admin_message&&<div style={{background:'var(--violet-bg)',border:'1px solid var(--violet-bd)',borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10}}>
+        <span>📣</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:'var(--violet-txt)'}}>Message de CoiffPro</div><div style={{fontSize:12,color:'var(--violet-txt)',opacity:.8,marginTop:2}}>{salon.admin_message}</div></div>
       </div>}
-      {unpaid.length>0&&<div onClick={()=>nav('agenda')} style={{background:'#fdf6e6',border:'1px solid #eed898',borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
+      {unpaid.length>0&&<div onClick={()=>nav('agenda')} style={{background:'var(--warn-bg)',border:'1px solid var(--warn-bd)',borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
         <span>💰</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:'var(--gold)'}}>{unpaid.length} RDV non encaissés</div><div style={{fontSize:11,color:'var(--gold)',opacity:.7}}>Voir agenda →</div></div>
       </div>}
-      {lowStock.length>0&&<div onClick={()=>nav('stock')} style={{background:'#fff5f5',border:'1px solid #fbbfbf',borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
+      {lowStock.length>0&&<div onClick={()=>nav('stock')} style={{background:'var(--danger-bg)',border:'1px solid var(--danger-bd)',borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
         <span>📦</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:'var(--red)'}}>{lowStock.length} produit{lowStock.length>1?'s':''} en stock faible</div><div style={{fontSize:11,color:'var(--red)',opacity:.7}}>Voir le stock →</div></div>
       </div>}
-      {gifts>0&&<div onClick={()=>nav('fidelite')} style={{background:'#e8f7ee',border:'1px solid #b8dfc6',borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
+      {gifts>0&&<div onClick={()=>nav('fidelite')} style={{background:'var(--success-bg)',border:'1px solid var(--success-bd)',borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
         <span>🎁</span><div style={{fontSize:13,fontWeight:600,color:'var(--green)'}}>{gifts} client{gifts>1?'s':''} — cadeau à remettre !</div>
       </div>}
       <div className="g2">
@@ -701,7 +709,7 @@ export default function Dashboard() {
                   <tr key={c.id} style={{cursor:'pointer'}} onClick={()=>{setSel(c);setNote(c.notes||'')}}>
                     <td><div style={{display:'flex',alignItems:'center',gap:8}}>
                       <div style={{width:26,height:26,borderRadius:'50%',background:'#c8a96e22',color:'#c8a96e',display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,fontWeight:700,flexShrink:0}}>{ini(c.name)}</div>
-                      <span style={{fontWeight:500}}>{c.name}{c.gift_available&&<span style={{display:'inline-flex',background:'#e8f7ee',border:'1px solid #b8dfc6',borderRadius:5,padding:'1px 5px',fontSize:9,color:'var(--green)',fontWeight:600,marginLeft:5}}>🎁</span>}</span>
+                      <span style={{fontWeight:500}}>{c.name}{c.gift_available&&<span style={{display:'inline-flex',background:'var(--success-bg)',border:'1px solid var(--success-bd)',borderRadius:5,padding:'1px 5px',fontSize:9,color:'var(--green)',fontWeight:600,marginLeft:5}}>🎁</span>}</span>
                     </div></td>
                     <td style={{color:'var(--t2)'}}>{c.phone}</td>
                     <td style={{fontWeight:600}}>{c.visit_count}</td>
@@ -910,7 +918,7 @@ export default function Dashboard() {
         <SC label="Unités en stock" value={totalStock} />
         <SC label="Valeur du stock" value={fmt(stockValue)} up />
       </div>
-      {lowStock.length>0&&<div style={{background:'#fff5f5',border:'1px solid #fbbfbf',borderRadius:10,padding:'10px 14px',marginBottom:12}}>
+      {lowStock.length>0&&<div style={{background:'var(--danger-bg)',border:'1px solid var(--danger-bd)',borderRadius:10,padding:'10px 14px',marginBottom:12}}>
         <div style={{fontSize:12,fontWeight:600,color:'var(--red)',marginBottom:6}}>⚠ Stock faible — {lowStock.length} produit{lowStock.length>1?'s':''} à réapprovisionner</div>
         {lowStock.map(p=><div key={p.id} style={{fontSize:11,color:'var(--red)',marginBottom:2}}>• {p.name} ({p.reference}) — {p.stock_quantity} unité{p.stock_quantity!==1?'s':''}</div>)}
       </div>}
@@ -1015,7 +1023,7 @@ export default function Dashboard() {
             {f.google_maps_embed && (
               f.google_maps_embed.includes('maps/embed') || f.google_maps_embed.includes('maps.google.com/maps?')
                 ? <div style={{marginTop:8,borderRadius:8,overflow:'hidden',height:160}}><iframe src={f.google_maps_embed} style={{width:'100%',height:'100%',border:'none'}} loading="lazy" /></div>
-                : <div style={{marginTop:8,padding:'10px 12px',background:'#fdf6e6',border:'1px solid #eed898',borderRadius:8,fontSize:12,color:'#92400e',lineHeight:1.6}}>
+                : <div style={{marginTop:8,padding:'10px 12px',background:'var(--warn-bg)',border:'1px solid var(--warn-bd)',borderRadius:8,fontSize:12,color:'var(--warn-txt)',lineHeight:1.6}}>
                     ⚠ Cette URL ne peut pas s'afficher dans une carte intégrée.<br/>
                     <strong>Comment obtenir la bonne URL :</strong><br/>
                     1. Ouvre <strong>Google Maps</strong> sur ton adresse<br/>
@@ -1184,11 +1192,11 @@ export default function Dashboard() {
           <Card>
             <CardHd title="Connexion SumUp" />
             {salon?.sumup_merchant_code
-              ? <div style={{background:'#e8f7ee',border:'1px solid #b8dfc6',borderRadius:10,padding:14}}>
+              ? <div style={{background:'var(--success-bg)',border:'1px solid var(--success-bd)',borderRadius:10,padding:14}}>
                   <div style={{fontSize:13,fontWeight:600,color:'var(--green)',marginBottom:4}}>✅ SumUp connecté</div>
                   <div style={{fontSize:11,color:'var(--t3)'}}>Merchant: {salon.sumup_merchant_code}</div>
                 </div>
-              : <div style={{background:'#eff6ff',border:'1px solid #bfdbfe',borderRadius:10,padding:14}}>
+              : <div style={{background:'var(--info-bg)',border:'1px solid var(--info-bd)',borderRadius:10,padding:14}}>
                   <div style={{fontSize:13,fontWeight:600,marginBottom:8}}>Connecter votre compte SumUp</div>
                   <a href={`/api/sumup/connect?salonId=${salon?.id}`} style={{display:'block',background:'#1a4fa0',color:'#fff',borderRadius:8,padding:'10px',textAlign:'center' as const,fontSize:13,fontWeight:600,textDecoration:'none'}}>🔵 Connecter →</a>
                 </div>
@@ -1468,7 +1476,7 @@ export default function Dashboard() {
         <Card>
           <CardHd title="Connexion SumUp" />
           {salon?.sumup_merchant_code
-            ? <div style={{background:'#e8f7ee',border:'1px solid #b8dfc6',borderRadius:10,padding:14}}>
+            ? <div style={{background:'var(--success-bg)',border:'1px solid var(--success-bd)',borderRadius:10,padding:14}}>
                 <div style={{fontSize:13,fontWeight:600,color:'var(--green)',marginBottom:4}}>✅ SumUp connecté</div>
                 <div style={{fontSize:11,color:'var(--t3)',marginBottom:10}}>Merchant code : {salon.sumup_merchant_code}</div>
                 <div style={{fontSize:12,color:'var(--t2)'}}>Vous pouvez maintenant encaisser via SumUp depuis l'agenda (bouton 💰 Encaisser).</div>
@@ -1579,12 +1587,12 @@ export default function Dashboard() {
           </div>
         </FRow>
 
-        {discType&&discVal>0&&<div style={{display:'flex',justifyContent:'space-between',padding:'6px 12px',background:'#fff5f5',borderRadius:8,marginBottom:10,fontSize:12}}>
+        {discType&&discVal>0&&<div style={{display:'flex',justifyContent:'space-between',padding:'6px 12px',background:'var(--danger-bg)',borderRadius:8,marginBottom:10,fontSize:12}}>
           <span style={{color:'var(--red)'}}>Remise appliquée</span>
           <span style={{color:'var(--red)',fontWeight:600}}>-{discType==='percent'?`${discVal}%`:fmt(discVal*100)}</span>
         </div>}
 
-        <div style={{display:'flex',justifyContent:'space-between',padding:'12px 14px',background:finalPrice<base?'#e8f7ee':'var(--s1)',borderRadius:10,marginBottom:16,border:`1px solid ${finalPrice<base?'#b8dfc6':'var(--b1)'}`}}>
+        <div style={{display:'flex',justifyContent:'space-between',padding:'12px 14px',background:finalPrice<base?'var(--success-bg)':'var(--s1)',borderRadius:10,marginBottom:16,border:`1px solid ${finalPrice<base?'var(--success-bd)':'var(--b1)'}`}}>
           <span style={{fontSize:15,fontWeight:600}}>Total à encaisser</span>
           <span style={{fontSize:20,fontWeight:700,color:'var(--green)'}}>{fmt(finalPrice)}</span>
         </div>
@@ -1599,8 +1607,8 @@ export default function Dashboard() {
           </div>
         </FRow>
 
-        {method==='sumup'&&!hasSumUp&&<div style={{marginTop:8,padding:'8px 12px',background:'#fdf6e6',border:'1px solid #eed898',borderRadius:8,fontSize:12,color:'#92400e'}}>
-          ⚠ SumUp non connecté. <a href={`/api/sumup/connect?salonId=${salon?.id}`} style={{color:'#92400e',fontWeight:600}}>Connecter mon compte →</a>
+        {method==='sumup'&&!hasSumUp&&<div style={{marginTop:8,padding:'8px 12px',background:'var(--warn-bg)',border:'1px solid var(--warn-bd)',borderRadius:8,fontSize:12,color:'var(--warn-txt)'}}>
+          ⚠ SumUp non connecté. <a href={`/api/sumup/connect?salonId=${salon?.id}`} style={{color:'var(--warn-txt)',fontWeight:600}}>Connecter mon compte →</a>
         </div>}
 
         <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:14}}>
@@ -1638,9 +1646,9 @@ export default function Dashboard() {
     }
 
     return <>
-      <Card style={{marginBottom:12,background:'#ede9fe',border:'1px solid #c4b5fd'}}>
-        <div style={{fontSize:13,fontWeight:600,color:'#7c3aed',marginBottom:4}}>💬 Support CoiffPro</div>
-        <div style={{fontSize:12,color:'#5b21b6'}}>Posez vos questions ici — nous répondons généralement dans l'heure.</div>
+      <Card style={{marginBottom:12,background:'var(--violet-bg)',border:'1px solid var(--violet-bd)'}}>
+        <div style={{fontSize:13,fontWeight:600,color:'var(--violet-txt)',marginBottom:4}}>💬 Support CoiffPro</div>
+        <div style={{fontSize:12,color:'var(--violet-txt)',opacity:.8}}>Posez vos questions ici — nous répondons généralement dans l'heure.</div>
       </Card>
 
       <Card>
@@ -1813,8 +1821,26 @@ export default function Dashboard() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&display=swap');
         *{box-sizing:border-box}
-        :root{--bg:#fff;--s1:#fafafa;--s2:#f4f4f4;--b1:#e8e8e8;--b2:#d0d0d0;--t1:#111;--t2:#666;--t3:#bbb;--gold:#b8922a;--green:#1a9648;--red:#d04040}
-        [data-theme="dark"]{--bg:#080808;--s1:#0e0e0e;--s2:#161616;--b1:#1e1e1e;--b2:#2c2c2c;--t1:#f2f2f2;--t2:#888;--t3:#333;--gold:#c8a96e;--green:#3dba6f}
+        :root{
+          --bg:#fff;--s1:#fafafa;--s2:#f4f4f4;--b1:#e8e8e8;--b2:#d0d0d0;
+          --t1:#111;--t2:#666;--t3:#bbb;
+          --gold:#b8922a;--green:#1a9648;--red:#d04040;--purple:#7c3aed;
+          --warn-bg:#fdf6e6;--warn-bd:#eed898;--warn-txt:#92400e;
+          --danger-bg:#fff5f5;--danger-bd:#fbbfbf;--danger-txt:#991b1b;
+          --success-bg:#e8f7ee;--success-bd:#b8dfc6;--success-txt:#1a9648;
+          --info-bg:#eff6ff;--info-bd:#bfdbfe;--info-txt:#1e40af;
+          --violet-bg:#ede9fe;--violet-bd:#c4b5fd;--violet-txt:#7c3aed;
+        }
+        [data-theme="dark"]{
+          --bg:#0a0a0a;--s1:#111;--s2:#1a1a1a;--b1:#222;--b2:#333;
+          --t1:#f0f0f0;--t2:#888;--t3:#3a3a3a;
+          --gold:#c8a96e;--green:#3dba6f;--red:#e05555;--purple:#a78bfa;
+          --warn-bg:#2a1f05;--warn-bd:#6b4c0d;--warn-txt:#f6cc6b;
+          --danger-bg:#1e0808;--danger-bd:#7f1d1d;--danger-txt:#fca5a5;
+          --success-bg:#071a0e;--success-bd:#1a5c30;--success-txt:#6ee7a0;
+          --info-bg:#071528;--info-bd:#1e3a5f;--info-txt:#93c5fd;
+          --violet-bg:#160d2e;--violet-bd:#4c1d95;--violet-txt:#c4b5fd;
+        }
         body{background:var(--bg);color:var(--t1)}
         .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
         .stat-card{background:var(--bg);border:1px solid var(--b1);border-radius:10px;padding:13px}
@@ -1837,8 +1863,8 @@ export default function Dashboard() {
         .input::placeholder{color:var(--t3)}
         textarea.input{resize:none}
         .badge{font-size:9px;padding:2px 7px;border-radius:10px;font-weight:600}
-        .badge-ok{background:#e8f7ee;color:#1a9648;border:1px solid #b8dfc6}
-        .badge-wait{background:#fdf6e6;color:#b8922a;border:1px solid #eed898}
+        .badge-ok{background:var(--success-bg);color:var(--green);border:1px solid var(--success-bd)}
+        .badge-wait{background:var(--warn-bg);color:var(--gold);border:1px solid var(--warn-bd)}
         .badge-done{background:var(--s2);color:var(--t3);border:1px solid var(--b1)}
         .tgl{width:34px;height:19px;background:var(--b2);border-radius:10px;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
         .tgl.on{background:var(--t1)}
