@@ -1405,7 +1405,7 @@ export default function Dashboard() {
 
       {showModal && (
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.45)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
-          <div style={{background:'var(--card)',borderRadius:16,padding:24,width:'100%',maxWidth:480,boxShadow:'0 8px 40px rgba(0,0,0,.18)'}}>
+          <div style={{background:'var(--card)',borderRadius:16,padding:24,width:'100%',maxWidth:480,border:'1px solid var(--b1)',boxShadow:'0 8px 40px rgba(0,0,0,.35)'}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
               <div style={{fontWeight:700,fontSize:16}}>📨 Nouvelle campagne SMS</div>
               <span onClick={()=>setShowModal(false)} style={{cursor:'pointer',fontSize:20,color:'var(--t3)'}}>✕</span>
@@ -1825,21 +1825,25 @@ export default function Dashboard() {
           --bg:#fff;--s1:#fafafa;--s2:#f4f4f4;--b1:#e8e8e8;--b2:#d0d0d0;
           --t1:#111;--t2:#666;--t3:#bbb;
           --gold:#b8922a;--green:#1a9648;--red:#d04040;--purple:#7c3aed;
+          --btn-bg:#111;--btn-txt:#fff;
           --warn-bg:#fdf6e6;--warn-bd:#eed898;--warn-txt:#92400e;
           --danger-bg:#fff5f5;--danger-bd:#fbbfbf;--danger-txt:#991b1b;
           --success-bg:#e8f7ee;--success-bd:#b8dfc6;--success-txt:#1a9648;
           --info-bg:#eff6ff;--info-bd:#bfdbfe;--info-txt:#1e40af;
           --violet-bg:#ede9fe;--violet-bd:#c4b5fd;--violet-txt:#7c3aed;
+          --card:var(--bg);--bd:var(--b1);--accent:var(--gold);
         }
         [data-theme="dark"]{
-          --bg:#0a0a0a;--s1:#111;--s2:#1a1a1a;--b1:#222;--b2:#333;
+          --bg:#0a0a0a;--s1:#111;--s2:#1a1a1a;--b1:#252525;--b2:#333;
           --t1:#f0f0f0;--t2:#888;--t3:#3a3a3a;
           --gold:#c8a96e;--green:#3dba6f;--red:#e05555;--purple:#a78bfa;
+          --btn-bg:#e8e8e8;--btn-txt:#111;
           --warn-bg:#2a1f05;--warn-bd:#6b4c0d;--warn-txt:#f6cc6b;
           --danger-bg:#1e0808;--danger-bd:#7f1d1d;--danger-txt:#fca5a5;
           --success-bg:#071a0e;--success-bd:#1a5c30;--success-txt:#6ee7a0;
           --info-bg:#071528;--info-bd:#1e3a5f;--info-txt:#93c5fd;
           --violet-bg:#160d2e;--violet-bd:#4c1d95;--violet-txt:#c4b5fd;
+          --card:#161616;--bd:#252525;--accent:#c8a96e;
         }
         body{background:var(--bg);color:var(--t1)}
         .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
@@ -1854,10 +1858,11 @@ export default function Dashboard() {
         .card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
         .card-ttl{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.07em}
         .card-lnk{font-size:11px;color:var(--t2);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
-        .btn-p{background:var(--t1);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;transition:opacity .12s}
+        .btn-p{background:var(--btn-bg);color:var(--btn-txt);border:1px solid transparent;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;transition:opacity .12s}
         .btn-p:hover{opacity:.8}
-        .btn-g{background:var(--bg);color:var(--t1);border:1px solid var(--b2);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap}
-        .btn-danger{background:var(--bg);color:var(--red);border:1px solid var(--red);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit}
+        .btn-g{background:transparent;color:var(--t1);border:1px solid var(--b2);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap}
+        .btn-g:hover{background:var(--s2)}
+        .btn-danger{background:transparent;color:var(--red);border:1px solid var(--red);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit}
         .input{background:var(--bg);border:1px solid var(--b2);border-radius:8px;padding:8px 11px;font-size:12px;color:var(--t1);width:100%;font-family:inherit;outline:none}
         .input:focus{border-color:var(--t2)}
         .input::placeholder{color:var(--t3)}
