@@ -1,0 +1,40 @@
+{
+	"appId": "fr.coiffpro.app",
+	"appName": "CoiffPro",
+	"webDir": "out",
+	"server": {
+		"url": "http://localhost:3000/onboarding",
+		"cleartext": true
+	},
+	"plugins": {
+		"PushNotifications": {
+			"presentationOptions": [
+				"badge",
+				"sound",
+				"alert"
+			]
+		},
+		"SplashScreen": {
+			"launchShowDuration": 2000,
+			"launchAutoHide": true,
+			"backgroundColor": "#1a1a1a",
+			"androidSplashResourceName": "splash",
+			"showSpinner": false
+		},
+		"StatusBar": {
+			"style": "Dark",
+			"backgroundColor": "#1a1a1a"
+		}
+	},
+	"ios": {
+		"contentInset": "automatic"
+	},
+	"android": {
+		"allowMixedContent": false
+	},
+	"packageClassList": [
+		"PushNotificationsPlugin",
+		"SplashScreenPlugin",
+		"StatusBarPlugin"
+	]
+}
