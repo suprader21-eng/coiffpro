@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   }
 
   const result = await sendPush({ userIds, title, body, data })
-  if (!result.success) return NextResponse.json({ error: result.error }, { status: 502 })
+  if (!result.success) { const r = result as { success: false; error: string }; return NextResponse.json({ error: r.error }, { status: 502 }) }
 
   return NextResponse.json({ success: true, id: result.id })
 }
