@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 
 /* ─── Types ─── */
-type Salon = { id:string; name:string; slug:string; email:string; phone:string; address:string; city:string; description:string; instagram:string; google_link:string; google_maps_embed:string; primary_color:string; accent_color:string; status:string; plan_price:number; trial_ends_at:string; sumup_merchant_code:string; sumup_access_token:string; admin_message:string; custom_domain:string; logo_url:string; notification_settings:Record<string,boolean>|null; stripe_customer_id:string }
+type Salon = { id:string; name:string; slug:string; tagline:string; email:string; phone:string; address:string; city:string; description:string; instagram:string; google_link:string; google_maps_embed:string; primary_color:string; accent_color:string; status:string; plan_price:number; trial_ends_at:string; sumup_merchant_code:string; sumup_access_token:string; admin_message:string; custom_domain:string; logo_url:string; notification_settings:Record<string,boolean>|null; stripe_customer_id:string }
 type Employee = { id:string; name:string; role:string; color:string; is_active:boolean; sort_order:number }
 type Service = { id:string; name:string; category:string; duration_minutes:number; price_cents:number; is_active:boolean }
 type Client = { id:string; name:string; phone:string; email:string; visit_count:number; total_spent_cents:number; loyalty_points:number; gift_available:boolean; last_visit_at:string; notes:string }
@@ -967,7 +967,7 @@ export default function Dashboard() {
 
   function PageMaPage() {
     const [f, setF] = useState({
-      name:salon?.name||'', description:salon?.description||'', address:salon?.address||'',
+      name:salon?.name||'', tagline:salon?.tagline||'', description:salon?.description||'', address:salon?.address||'',
       city:salon?.city||'', phone:salon?.phone||'', instagram:salon?.instagram||'',
       google_link:salon?.google_link||'', google_maps_embed:salon?.google_maps_embed||'',
       primary_color:salon?.primary_color||'#1a1a1a', accent_color:salon?.accent_color||'#c8a96e',
@@ -995,6 +995,7 @@ export default function Dashboard() {
           <Card>
             <CardHd title="Informations affichées" />
             <FRow label="Nom du salon"><Inp value={f.name} onChange={v=>up('name',v)} placeholder="Mon Salon" /></FRow>
+            <FRow label="Accroche (tagline)"><Inp value={f.tagline} onChange={v=>up('tagline',v)} placeholder="Coiffure & Barbier" /></FRow>
             <FRow label="Description">
               <textarea value={f.description} onChange={e=>up('description',e.target.value)} className="input" style={{height:80,resize:'none' as const,lineHeight:1.5}} placeholder="Présentez votre salon…" />
             </FRow>
@@ -1073,19 +1074,21 @@ export default function Dashboard() {
             </div>
           </Card>
           <Card>
-            <CardHd title="Votre lien de réservation" />
+            <CardHd title="Votre vitrine client" />
             {(() => {
-              const base = salon?.custom_domain ? `https://${salon.custom_domain}` : (process.env.NEXT_PUBLIC_APP_URL||'https://coiffpro.fr')
-              const fullUrl = `${base}/book/${salon?.slug}`
-              const display = `coiffpro.fr/${salon?.slug}`
+              const base = process.env.NEXT_PUBLIC_APP_URL||'https://coiffpro.fr'
+              const fullUrl = `${base}/barbier/${salon?.slug}`
               return <>
                 <div style={{background:'var(--s1)',border:'1px solid var(--b1)',borderRadius:9,padding:'10px 14px',marginBottom:12}}>
-                  <div style={{fontSize:11,color:'var(--t3)',marginBottom:3}}>Votre lien de réservation</div>
-                  <div style={{fontSize:14,fontWeight:700,color:'var(--t1)'}}>coiffpro.fr/<span style={{color:'var(--gold)'}}>{salon?.slug}</span></div>
+                  <div style={{fontSize:11,color:'var(--t3)',marginBottom:3}}>Lien de réservation</div>
+                  <div style={{fontSize:13,fontWeight:700,color:'var(--t1)',wordBreak:'break-all'}}>coiffpro.fr/barbier/<span style={{color:'var(--gold)'}}>{salon?.slug}</span></div>
                 </div>
-                <div style={{display:'flex',gap:6}}>
+                <div style={{display:'flex',gap:6,marginBottom:12}}>
                   <Btn ghost onClick={()=>{navigator.clipboard?.writeText(fullUrl).catch(()=>{});addToast('📋 Lien copié !')}}>Copier</Btn>
-                  <Btn onClick={()=>window.open(`/book/${salon?.slug}`,'_blank')}>Voir la page ↗</Btn>
+                  <Btn onClick={()=>window.open(`/barbier/${salon?.slug}`,'_blank')}>Ouvrir ↗</Btn>
+                </div>
+                <div style={{borderRadius:10,overflow:'hidden',border:'1px solid var(--b1)',height:400,background:'var(--s1)'}}>
+                  <iframe src={`/barbier/${salon?.slug}`} style={{width:'100%',height:'100%',border:'none',transform:'scale(0.75)',transformOrigin:'top left',width:'133%',height:'133%'}} title="Aperçu vitrine" />
                 </div>
               </>
             })()}

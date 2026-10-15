@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { createClient } from '@supabase/supabase-js'
 import { sendReviewRequest, sendLoyaltyReward, sendCampaign, sendReactivation } from '@/lib/sms'
+import { rateLimit } from '@/lib/ratelimit'
 
 async function getSalonFromToken(req: NextRequest) {
   const token = req.headers.get('authorization')?.replace('Bearer ', '')
@@ -18,6 +19,17 @@ async function getSalonFromToken(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  // 10 SMS max par IP par heure
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
+  const rl = rateLimit(`sms:${ip}`, 10, 60 * 60 * 1000)
+  if (!rl.ok) {
+    const retryAfter = 'retryAfter' in rl ? rl.retryAfter : 60
+    return NextResponse.json(
+      { error: 'Trop de requêtes.' },
+      { status: 429, headers: { 'Retry-After': String(retryAfter) } }
+    )
+  }
+
   try {
     const body = await req.json()
     const { type, appointmentId, clientId, salonId, campaignId } = body
