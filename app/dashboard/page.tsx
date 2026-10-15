@@ -1860,8 +1860,8 @@ export default function Dashboard() {
         .card-lnk{font-size:11px;color:var(--t2);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
         .btn-p{background:var(--btn-bg);color:var(--btn-txt);border:1px solid transparent;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;transition:opacity .12s}
         .btn-p:hover{opacity:.8}
-        .btn-g{background:transparent;color:var(--t1);border:1px solid var(--b2);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap}
-        .btn-g:hover{background:var(--s2)}
+        .btn-g{background:var(--s2);color:var(--t1);border:1px solid var(--b2);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap}
+        .btn-g:hover{background:var(--b1)}
         .btn-danger{background:transparent;color:var(--red);border:1px solid var(--red);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit}
         .input{background:var(--bg);border:1px solid var(--b2);border-radius:8px;padding:8px 11px;font-size:12px;color:var(--t1);width:100%;font-family:inherit;outline:none}
         .input:focus{border-color:var(--t2)}
