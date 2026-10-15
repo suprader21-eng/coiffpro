@@ -48,7 +48,7 @@ export default function HomePage() {
       {/* Choix */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, width: '100%', maxWidth: 340 }}>
         {/* Client */}
-        <Link href="/home" style={{ textDecoration: 'none' }} onClick={() => { try { localStorage.setItem('cp_role', 'client') } catch {} }}>
+        <Link href="/onboarding" style={{ textDecoration: 'none' }}>
           <div style={{
             background: D.gold, borderRadius: 16, padding: '20px 24px',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',

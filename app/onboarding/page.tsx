@@ -9,8 +9,8 @@ const D = {
   gold: '#c9a45c', cream: '#ede6d8', muted: '#b5ac9c', muted2: '#6b6458',
 }
 
-type Screen = 'role' | 'c1' | 'c2' | 'c3' | 'cauth' | 'p1' | 'p2' | 'p3' | 'pform'
-const ORDER: Screen[] = ['role', 'c1', 'c2', 'c3', 'cauth', 'p1', 'p2', 'p3', 'pform']
+type Screen = 'role' | 'c1' | 'c2' | 'c3' | 'cauth' | 'cdiag' | 'p1' | 'p2' | 'p3' | 'pform'
+const ORDER: Screen[] = ['role', 'c1', 'c2', 'c3', 'cauth', 'cdiag', 'p1', 'p2', 'p3', 'pform']
 
 const slideStyle = (screen: Screen, current: Screen, prev: Screen | null): React.CSSProperties => {
   const ci = ORDER.indexOf(current), si = ORDER.indexOf(screen)
@@ -105,6 +105,9 @@ export default function OnboardingPage() {
   const [clientPhone, setClientPhone] = useState('')
   const [authError, setAuthError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [diagServices, setDiagServices] = useState<string[]>([])
+  const [diagFreq, setDiagFreq] = useState('')
+  const [diagStyle, setDiagStyle] = useState('')
 
   useEffect(() => {
     try {
@@ -288,7 +291,7 @@ export default function OnboardingPage() {
                   if (clientPhone.trim()) localStorage.setItem('cp_phone', clientPhone.trim())
                 } catch {}
                 setSubmitting(false)
-                router.replace('/home')
+                goTo('cdiag')
               }}
               style={{ width: '100%', padding: 16, borderRadius: 13, background: submitting ? 'rgba(201,164,92,0.5)' : D.gold, border: 'none', color: D.dark, fontSize: 15, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', transition: 'background .2s' }}
             >
@@ -296,12 +299,117 @@ export default function OnboardingPage() {
             </button>
             {authError && <div style={{ fontSize: 11, color: '#e07070', textAlign: 'center' }}>{authError}</div>}
             <button
-              onClick={doneClient}
+              onClick={() => {
+                try { localStorage.setItem('cp_role', 'client') } catch {}
+                goTo('cdiag')
+              }}
               style={{ width: '100%', padding: 14, borderRadius: 13, background: 'none', border: `1px solid ${D.border}`, color: D.muted, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}
             >
               Passer pour l'instant
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* ── CLIENT DIAGNOSTIC ── */}
+      <div style={slideStyle('cdiag', screen, prev)}>
+        <StatusBar />
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px 20px', scrollbarWidth: 'none' }}>
+          <div style={{ paddingBottom: 4 }}>
+            <button onClick={() => goTo('cauth')} style={{ background: 'none', border: 'none', color: D.gold, fontWeight: 500, fontSize: 12, cursor: 'pointer', padding: '12px 0', fontFamily: 'inherit' }}>
+              ← Retour
+            </button>
+            <div style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 22, color: D.gold }}>CoiffPro</div>
+            <div style={{ fontSize: 20, color: D.cream, fontWeight: 600, marginTop: 2 }}>Votre profil</div>
+            <div style={{ fontSize: 12, color: D.muted, marginTop: 4, lineHeight: 1.5 }}>Quelques questions pour personnaliser votre expérience</div>
+          </div>
+
+          {/* Q1 — Services */}
+          <div style={{ marginTop: 22 }}>
+            <div style={{ fontSize: 10, color: D.muted, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 12 }}>Ce que vous cherchez</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {[
+                { id: 'coupe', label: 'Coupe', emoji: '✂', sub: 'Cheveux' },
+                { id: 'barbe', label: 'Barbe', emoji: '🪒', sub: 'Taille & soin' },
+                { id: 'les-deux', label: 'Les deux', emoji: '✨', sub: 'Coupe + barbe' },
+                { id: 'soins', label: 'Soins', emoji: '💆', sub: 'Visage & peau' },
+              ].map(opt => {
+                const sel = diagServices.includes(opt.id)
+                return (
+                  <button key={opt.id}
+                    onClick={() => setDiagServices(s => sel ? s.filter(x => x !== opt.id) : [...s, opt.id])}
+                    style={{ padding: '14px 12px', borderRadius: 12, background: sel ? 'rgba(201,164,92,0.15)' : D.dark3, border: `1px solid ${sel ? D.gold : D.border}`, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', transition: 'all .15s ease' }}>
+                    <div style={{ fontSize: 22, marginBottom: 6 }}>{opt.emoji}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: sel ? D.gold : D.cream }}>{opt.label}</div>
+                    <div style={{ fontSize: 10, color: D.muted, marginTop: 2 }}>{opt.sub}</div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Q2 — Fréquence */}
+          <div style={{ marginTop: 22 }}>
+            <div style={{ fontSize: 10, color: D.muted, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 12 }}>Fréquence de visite</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[
+                { id: '2x-mois', label: 'Toutes les 2 semaines' },
+                { id: '1x-mois', label: '1 fois par mois' },
+                { id: '2mois', label: 'Tous les 2 mois' },
+                { id: 'besoin', label: 'Selon mes besoins' },
+              ].map(opt => {
+                const sel = diagFreq === opt.id
+                return (
+                  <button key={opt.id} onClick={() => setDiagFreq(opt.id)}
+                    style={{ padding: '12px 16px', borderRadius: 10, background: sel ? 'rgba(201,164,92,0.12)' : D.dark3, border: `1px solid ${sel ? D.gold : D.border}`, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'all .15s ease' }}>
+                    <span style={{ fontSize: 13, color: sel ? D.gold : D.cream }}>{opt.label}</span>
+                    {sel && <span style={{ fontSize: 12, color: D.gold }}>✓</span>}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Q3 — Style */}
+          <div style={{ marginTop: 22, paddingBottom: 8 }}>
+            <div style={{ fontSize: 10, color: D.muted, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 12 }}>Votre style</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {[
+                { id: 'classique', label: 'Classique' },
+                { id: 'moderne', label: 'Moderne' },
+                { id: 'tendance', label: 'Tendance' },
+                { id: 'variable', label: 'Ça change !' },
+              ].map(opt => {
+                const sel = diagStyle === opt.id
+                return (
+                  <button key={opt.id} onClick={() => setDiagStyle(opt.id)}
+                    style={{ padding: '9px 18px', borderRadius: 20, background: sel ? 'rgba(201,164,92,0.15)' : D.dark3, border: `1px solid ${sel ? D.gold : D.border}`, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s ease' }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: sel ? D.gold : D.muted }}>{opt.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ padding: '16px 24px 28px' }}>
+          <button
+            onClick={() => {
+              try {
+                localStorage.setItem('cp_prefs', JSON.stringify({ services: diagServices, freq: diagFreq, style: diagStyle }))
+              } catch {}
+              router.replace('/home')
+            }}
+            style={{ width: '100%', padding: 16, borderRadius: 13, background: D.gold, border: 'none', color: D.dark, fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            Créer mon espace →
+          </button>
+          <button
+            onClick={() => router.replace('/home')}
+            style={{ width: '100%', padding: 14, borderRadius: 13, background: 'none', border: `1px solid ${D.border}`, color: D.muted, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', marginTop: 10 }}
+          >
+            Passer pour l'instant
+          </button>
         </div>
       </div>
 
