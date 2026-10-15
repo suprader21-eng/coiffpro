@@ -6,7 +6,7 @@ export async function initOneSignal(externalId: string): Promise<void> {
   try {
     const { Capacitor } = await import('@capacitor/core')
     if (!Capacitor.isNativePlatform()) return
-    const { OneSignal } = await import('onesignal-capacitor')
+    const { OneSignal } = await import('@onesignal/capacitor-plugin')
     OneSignal.initialize(process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID!)
     await OneSignal.Notifications.requestPermission(true)
     await OneSignal.login(externalId)
@@ -18,7 +18,7 @@ export async function logoutOneSignal(): Promise<void> {
   try {
     const { Capacitor } = await import('@capacitor/core')
     if (!Capacitor.isNativePlatform()) return
-    const { OneSignal } = await import('onesignal-capacitor')
+    const { OneSignal } = await import('@onesignal/capacitor-plugin')
     await OneSignal.logout()
   } catch {}
 }
