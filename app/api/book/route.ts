@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { sendConfirmation } from '@/lib/sms'
+import { rateLimit } from '@/lib/ratelimit'
 
 export async function POST(req: NextRequest) {
+  // 5 réservations max par IP toutes les 10 minutes
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
+  const rl = rateLimit(`book:${ip}`, 5, 10 * 60 * 1000)
+  if (!rl.ok) {
+    const retryAfter = 'retryAfter' in rl ? rl.retryAfter : 60
+    return NextResponse.json(
+      { error: 'Trop de requêtes, réessayez dans quelques minutes.' },
+      { status: 429, headers: { 'Retry-After': String(retryAfter) } }
+    )
+  }
+
   try {
     const body = await req.json()
     const { salonId, serviceId, date, time, firstName, lastName, phone, employeeId, note } = body

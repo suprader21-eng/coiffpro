@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+
 // Route publique — utilise le service role pour bypasser RLS
 // Accessible sans authentification (page de réservation client)
 export async function GET(req: NextRequest) {
@@ -10,7 +12,7 @@ export async function GET(req: NextRequest) {
   const db = getSupabaseAdmin()
 
   const { data: salon } = await db.from('salons')
-    .select('id,name,slug,description,address,city,phone,email,instagram,google_link,google_maps_embed,primary_color,accent_color,logo_url,rating,review_count')
+    .select('id,name,slug,tagline,description,address,city,phone,email,instagram,google_link,google_maps_embed,primary_color,accent_color,logo_url')
     .eq('slug', slug)
     .single()
 
