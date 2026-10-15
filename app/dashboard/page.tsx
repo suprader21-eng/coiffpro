@@ -69,6 +69,9 @@ const NAV_GROUPS = [
     {id:'ma-page',label:'Ma page client',icon:'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'},
     {id:'parametres',label:'Paramètres',icon:'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33'},
   ]},
+  { label:'COMMUNAUTÉ', items:[
+    {id:'reseau',label:'Réseau CoiffPro',icon:'M17 20h5v-2a3 3 0 0 0-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 0 1 5.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 0 1 9.288 0M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0z'},
+  ]},
 ]
 
 const PAGE_TITLES:Record<string,string> = {
@@ -77,6 +80,7 @@ const PAGE_TITLES:Record<string,string> = {
   paiements:'Paiements SumUp',avis:'Avis Google',rappels:'Rappels automatiques',
   support:'Support CoiffPro',
   'ma-page':'Ma page client',parametres:'Paramètres',
+  reseau:'Réseau CoiffPro',
 }
 
 const MOBILE_NAV = [
@@ -1672,6 +1676,117 @@ export default function Dashboard() {
     </>
   }
 
+  function PageReseau() {
+    const [salons, setSalons] = useState<{id:string;name:string;slug:string;city:string;address:string;phone:string;tagline:string}[]>([])
+    const [loading2, setLoading2] = useState(true)
+    const [search, setSearch] = useState('')
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://coiffpro.fr'
+    const refCode = salon?.slug || ''
+
+    useEffect(()=>{
+      fetch('/api/salon/list').then(r=>r.json()).then(d=>{
+        setSalons((d.salons||[]).filter((s:any)=>s.id!==salon?.id))
+        setLoading2(false)
+      }).catch(()=>setLoading2(false))
+    },[])
+
+    const filtered = salons.filter(s=>
+      !search || s.name.toLowerCase().includes(search.toLowerCase()) || (s.city||'').toLowerCase().includes(search.toLowerCase())
+    )
+
+    const copyRef = () => {
+      const url = `${appUrl}/?ref=${refCode}`
+      navigator.clipboard?.writeText(url).catch(()=>{})
+      addToast('📋 Lien de parrainage copié !')
+    }
+
+    const conseiller = (s:{name:string;slug:string;city:string}) => {
+      const url = `${appUrl}/barbier/${s.slug}`
+      navigator.clipboard?.writeText(url).catch(()=>{})
+      addToast(`📋 Lien de ${s.name} copié !`)
+    }
+
+    const whatsapp = (s:{name:string;slug:string;city:string}) => {
+      const url = `${appUrl}/barbier/${s.slug}`
+      const msg = encodeURIComponent(`Je te conseille ce barbier : ${s.name} (${s.city})\n${url}`)
+      window.open(`https://wa.me/?text=${msg}`, '_blank')
+    }
+
+    return <>
+      {/* Parrainage */}
+      <Card style={{marginBottom:12,background:'linear-gradient(135deg,#1a1a1a 0%,#2d2208 100%)',border:'1px solid var(--gold)',color:'#fff'}}>
+        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
+          <span style={{fontSize:22}}>🤝</span>
+          <div>
+            <div style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}>Parrainage CoiffPro</div>
+            <div style={{fontSize:11,color:'#aaa',marginTop:1}}>Invite un barbier → il rejoint la plateforme → vous gagnez tous les deux 1 mois offert</div>
+          </div>
+        </div>
+        <div style={{display:'flex',gap:8,alignItems:'center',background:'rgba(255,255,255,.06)',borderRadius:8,padding:'7px 10px'}}>
+          <span style={{fontSize:11,color:'#ccc',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{appUrl}/?ref={refCode}</span>
+          <button className="btn-p" onClick={copyRef} style={{background:'var(--gold)',flexShrink:0,fontSize:11,padding:'5px 12px'}}>Copier</button>
+        </div>
+        <div style={{fontSize:10,color:'#888',marginTop:6}}>Chaque barbier parrainé qui s'inscrit vous offre 1 mois gratuit (valeur 50€)</div>
+      </Card>
+
+      {/* Recherche */}
+      <Card style={{marginBottom:12}}>
+        <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:12}}>
+          <CardHd title={`Barbiers sur CoiffPro (${salons.length})`} />
+          <input className="input" value={search} onChange={e=>setSearch(e.target.value)}
+            placeholder="Rechercher par nom ou ville…" style={{marginLeft:'auto',width:200,fontSize:12}} />
+        </div>
+
+        {loading2
+          ? <div style={{textAlign:'center',padding:'30px 0',color:'var(--t3)'}}>Chargement…</div>
+          : filtered.length===0
+            ? <div style={{textAlign:'center',padding:'30px 0',color:'var(--t3)',fontSize:13}}>
+                {salons.length===0 ? <>Vous êtes le premier sur CoiffPro 🚀<br/><span style={{fontSize:11}}>Parrainez d'autres barbiers pour agrandir le réseau</span></> : 'Aucun résultat'}
+              </div>
+            : <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))',gap:10}}>
+                {filtered.map(s=>(
+                  <div key={s.id} style={{border:'1px solid var(--b1)',borderRadius:10,padding:'12px 14px',display:'flex',flexDirection:'column',gap:6}}>
+                    <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8}}>
+                      <div>
+                        <div style={{fontSize:13,fontWeight:600}}>{s.name}</div>
+                        {s.city&&<div style={{fontSize:11,color:'var(--t3)'}}>{s.city}</div>}
+                        {s.tagline&&<div style={{fontSize:11,color:'var(--t2)',marginTop:2,fontStyle:'italic'}}>{s.tagline}</div>}
+                      </div>
+                      <a href={`/barbier/${s.slug}`} target="_blank" rel="noopener noreferrer"
+                        style={{fontSize:10,color:'var(--t2)',textDecoration:'none',border:'1px solid var(--b1)',borderRadius:6,padding:'3px 7px',whiteSpace:'nowrap',flexShrink:0}}>
+                        Voir ↗
+                      </a>
+                    </div>
+                    <div style={{display:'flex',gap:6,marginTop:2}}>
+                      <button className="btn-p" onClick={()=>conseiller(s)} style={{flex:1,fontSize:11,padding:'5px 0'}}>📋 Copier lien</button>
+                      <button className="btn-g" onClick={()=>whatsapp(s)} style={{fontSize:11,padding:'5px 10px'}}>📲 WhatsApp</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+        }
+      </Card>
+
+      {/* Comment conseiller */}
+      <Card style={{background:'var(--s1)'}}>
+        <div style={{fontSize:11,fontWeight:600,color:'var(--t2)',marginBottom:8,textTransform:'uppercase' as const,letterSpacing:'.05em'}}>Comment conseiller un barbier ?</div>
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {[
+            {icon:'1️⃣', text:'Vous êtes complet ou indisponible pour un client'},
+            {icon:'2️⃣', text:'Trouvez un barbier proche ou de confiance dans le réseau'},
+            {icon:'3️⃣', text:'Copiez son lien et envoyez-le directement au client par SMS ou WhatsApp'},
+            {icon:'4️⃣', text:'Le client réserve en ligne, sans vous déranger'},
+          ].map(({icon,text})=>(
+            <div key={text} style={{display:'flex',gap:10,alignItems:'flex-start'}}>
+              <span style={{fontSize:16,flexShrink:0}}>{icon}</span>
+              <span style={{fontSize:12,color:'var(--t2)',lineHeight:1.4}}>{text}</span>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </>
+  }
+
   const renderPage = () => {
     switch(page) {
       case 'dashboard':  return <PageDashboard />
@@ -1688,6 +1803,7 @@ export default function Dashboard() {
       case 'ma-page':    return <PageMaPage />
       case 'parametres': return <PageParametres />
       case 'support':    return <PageSupport />
+      case 'reseau':     return <PageReseau />
       default: return null
     }
   }
