@@ -15,9 +15,9 @@ async function getSalon(salonId: string) {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const salon = await getSalon(params.salonId)
-  if (!salon) return { title: 'Salon introuvable — CoiffPro' }
+  if (!salon) return { title: 'Salon introuvable — Le Discret' }
 
-  const title = `${salon.name} — Réservation en ligne | CoiffPro`
+  const title = `${salon.name} — Réservation en ligne | Le Discret`
   const description = salon.description
     ? salon.description.slice(0, 155) + (salon.description.length > 155 ? '…' : '')
     : `Réservez chez ${salon.name} à ${salon.city}. Agenda en ligne, confirmation immédiate.`
@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       url,
       type: 'website',
       locale: 'fr_FR',
-      siteName: 'CoiffPro',
+      siteName: 'Le Discret',
     },
     alternates: { canonical: url },
     other: {

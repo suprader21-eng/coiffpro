@@ -61,7 +61,7 @@ const NAV_GROUPS = [
     {id:'services',label:'Services & Tarifs',icon:'M4 6h16M4 10h16M4 14h16M4 18h16'},
     {id:'stock',label:'Stock produits',icon:'M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z M12 12v.01'},
     {id:'paiements',label:'Paiements SumUp',icon:'M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0-2-2z M1 10h22'},
-    {id:'support',label:'Support CoiffPro',icon:'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'},
+    {id:'support',label:'Support Le Discret',icon:'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'},
     {id:'avis',label:'Avis Google',icon:'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'},
     {id:'rappels',label:'Rappels auto',icon:'M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z'},
   ]},
@@ -70,7 +70,7 @@ const NAV_GROUPS = [
     {id:'parametres',label:'Paramètres',icon:'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33'},
   ]},
   { label:'COMMUNAUTÉ', items:[
-    {id:'reseau',label:'Réseau CoiffPro',icon:'M17 20h5v-2a3 3 0 0 0-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 0 1 5.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 0 1 9.288 0M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0z'},
+    {id:'reseau',label:'Réseau Le Discret',icon:'M17 20h5v-2a3 3 0 0 0-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 0 1 5.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 0 1 9.288 0M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0z'},
   ]},
 ]
 
@@ -78,9 +78,9 @@ const PAGE_TITLES:Record<string,string> = {
   dashboard:'Tableau de bord',agenda:'Agenda',clients:'Clients & CRM',fidelite:'Fidélité & Remises',
   marketing:'Campagnes SMS',equipe:'Équipe',services:'Services & Tarifs',stock:'Stock produits',
   paiements:'Paiements SumUp',avis:'Avis Google',rappels:'Rappels automatiques',
-  support:'Support CoiffPro',
+  support:'Support Le Discret',
   'ma-page':'Ma page client',parametres:'Paramètres',
-  reseau:'Réseau CoiffPro',
+  reseau:'Réseau Le Discret',
 }
 
 const MOBILE_NAV = [
@@ -228,7 +228,7 @@ export default function Dashboard() {
         <SC label="Cadeaux fidélité" value={gifts} sub="à remettre" up={gifts>0} />
       </div>
       {salon?.admin_message&&<div style={{background:'var(--violet-bg)',border:'1px solid var(--violet-bd)',borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10}}>
-        <span>📣</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:'var(--violet-txt)'}}>Message de CoiffPro</div><div style={{fontSize:12,color:'var(--violet-txt)',opacity:.8,marginTop:2}}>{salon.admin_message}</div></div>
+        <span>📣</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:'var(--violet-txt)'}}>Message de Le Discret</div><div style={{fontSize:12,color:'var(--violet-txt)',opacity:.8,marginTop:2}}>{salon.admin_message}</div></div>
       </div>}
       {unpaid.length>0&&<div onClick={()=>nav('agenda')} style={{background:'var(--warn-bg)',border:'1px solid var(--warn-bd)',borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
         <span>💰</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:'var(--gold)'}}>{unpaid.length} RDV non encaissés</div><div style={{fontSize:11,color:'var(--gold)',opacity:.7}}>Voir agenda →</div></div>
@@ -273,7 +273,7 @@ export default function Dashboard() {
           </Card>
           <Card>
             <CardHd title="Abonnement" />
-            <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:6}}><span style={{color:'var(--t2)'}}>Plan</span><span style={{fontWeight:600}}>CoiffPro Pro</span></div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:6}}><span style={{color:'var(--t2)'}}>Plan</span><span style={{fontWeight:600}}>Le Discret Pro</span></div>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:6}}><span style={{color:'var(--t2)'}}>Statut</span><span className="badge badge-ok">{salon?.status==='trial'?'Essai gratuit':'Actif'}</span></div>
             {salon?.status==='trial'&&<div style={{fontSize:12,color:'var(--t3)',marginTop:6}}>Essai jusqu'au {new Date(salon.trial_ends_at).toLocaleDateString('fr-FR')}</div>}
           </Card>
@@ -1173,7 +1173,7 @@ export default function Dashboard() {
           <Card>
             <CardHd title="Abonnement" />
             <div style={{background:'var(--s1)',border:'1px solid var(--b1)',borderRadius:9,padding:12,marginBottom:12}}>
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:6}}><span style={{color:'var(--t2)'}}>Plan</span><span style={{fontWeight:600}}>CoiffPro Pro</span></div>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:6}}><span style={{color:'var(--t2)'}}>Plan</span><span style={{fontWeight:600}}>Le Discret Pro</span></div>
               <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:6}}><span style={{color:'var(--t2)'}}>Tarif</span><span style={{fontWeight:700}}>50€/mois</span></div>
               <div style={{display:'flex',justifyContent:'space-between',fontSize:13}}><span style={{color:'var(--t2)'}}>Statut</span><span className="badge badge-ok">{salon?.status==='trial'?'Essai gratuit':'Actif'}</span></div>
               {salon?.status==='trial'&&<div style={{fontSize:11,color:'var(--t3)',marginTop:6}}>Essai jusqu'au {new Date(salon.trial_ends_at||'').toLocaleDateString('fr-FR')}</div>}
@@ -1640,14 +1640,14 @@ export default function Dashboard() {
         if (!res.ok) throw new Error(json.error)
         setSupportMsgs(prev=>[...prev, json.message])
         setMsg('')
-        addToast('✅ Message envoyé à CoiffPro')
+        addToast('✅ Message envoyé à Le Discret')
       } catch(e:any) { addToast('❌ '+e.message) }
       setSending(false)
     }
 
     return <>
       <Card style={{marginBottom:12,background:'var(--violet-bg)',border:'1px solid var(--violet-bd)'}}>
-        <div style={{fontSize:13,fontWeight:600,color:'var(--violet-txt)',marginBottom:4}}>💬 Support CoiffPro</div>
+        <div style={{fontSize:13,fontWeight:600,color:'var(--violet-txt)',marginBottom:4}}>💬 Support Le Discret</div>
         <div style={{fontSize:12,color:'var(--violet-txt)',opacity:.8}}>Posez vos questions ici — nous répondons généralement dans l'heure.</div>
       </Card>
 
@@ -1664,7 +1664,7 @@ export default function Dashboard() {
                   {m.message}
                 </div>
                 <div style={{fontSize:10,color:'var(--t3)',marginTop:3,padding:'0 4px'}}>
-                  {m.from_admin?'CoiffPro':'Vous'} · {new Date(m.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
+                  {m.from_admin?'Le Discret':'Vous'} · {new Date(m.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
                 </div>
               </div>
             ))
@@ -1726,7 +1726,7 @@ export default function Dashboard() {
         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
           <span style={{fontSize:22}}>🤝</span>
           <div>
-            <div style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}>Parrainage CoiffPro</div>
+            <div style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}>Parrainage Le Discret</div>
             <div style={{fontSize:11,color:'#aaa',marginTop:1}}>Invite un barbier → il rejoint la plateforme → vous gagnez tous les deux 1 mois offert</div>
           </div>
         </div>
@@ -1740,7 +1740,7 @@ export default function Dashboard() {
       {/* Recherche */}
       <Card style={{marginBottom:12}}>
         <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:12}}>
-          <CardHd title={`Barbiers sur CoiffPro (${salons.length})`} />
+          <CardHd title={`Barbiers sur Le Discret (${salons.length})`} />
           <input className="input" value={search} onChange={e=>setSearch(e.target.value)}
             placeholder="Rechercher par nom ou ville…" style={{marginLeft:'auto',width:200,fontSize:12}} />
         </div>
@@ -1749,7 +1749,7 @@ export default function Dashboard() {
           ? <div style={{textAlign:'center',padding:'30px 0',color:'var(--t3)'}}>Chargement…</div>
           : filtered.length===0
             ? <div style={{textAlign:'center',padding:'30px 0',color:'var(--t3)',fontSize:13}}>
-                {salons.length===0 ? <>Vous êtes le premier sur CoiffPro 🚀<br/><span style={{fontSize:11}}>Parrainez d'autres barbiers pour agrandir le réseau</span></> : 'Aucun résultat'}
+                {salons.length===0 ? <>Vous êtes le premier sur Le Discret 🚀<br/><span style={{fontSize:11}}>Parrainez d'autres barbiers pour agrandir le réseau</span></> : 'Aucun résultat'}
               </div>
             : <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))',gap:10}}>
                 {filtered.map(s=>(
@@ -1908,7 +1908,7 @@ export default function Dashboard() {
         </button>
         {salon?.logo_url
           ? <img src={salon.logo_url} alt="logo" style={{height:28,maxWidth:80,objectFit:'contain',filter:theme==='dark'?'brightness(0) invert(1)':'none'}} />
-          : <span style={{fontFamily:'Georgia,serif',fontSize:18,fontWeight:700}}>✂ CoiffPro</span>
+          : <span style={{fontFamily:'Georgia,serif',fontSize:18,fontWeight:700}}>✂ Le Discret</span>
         }
         <span style={{fontSize:11,color:'var(--t2)'}}>{salon?.name}</span>
         <div style={{marginLeft:'auto',display:'flex',gap:8,alignItems:'center'}}>
@@ -1938,7 +1938,7 @@ export default function Dashboard() {
           ))}
           <div style={{marginTop:'auto',padding:'12px 14px',borderTop:'1px solid var(--b1)'}}>
             <div style={{background:'var(--s2)',border:'1px solid var(--b1)',borderRadius:8,padding:'9px 11px'}}>
-              <div style={{fontSize:10,fontWeight:600,textTransform:'uppercase' as const,letterSpacing:'.06em'}}>CoiffPro Pro</div>
+              <div style={{fontSize:10,fontWeight:600,textTransform:'uppercase' as const,letterSpacing:'.06em'}}>Le Discret Pro</div>
               <div style={{fontSize:11,color:'var(--t3)',marginTop:2}}>50€ / mois</div>
             </div>
           </div>

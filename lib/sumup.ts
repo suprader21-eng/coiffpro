@@ -1,5 +1,5 @@
 // ============================================================
-// CoiffPro — SumUp OAuth + Paiements
+// Le Discret — SumUp OAuth + Paiements
 // Chaque barber connecte SON propre compte SumUp
 // ============================================================
 

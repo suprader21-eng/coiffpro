@@ -33,7 +33,7 @@ export default function HomePage() {
       {/* Logo */}
       <div style={{ textAlign: 'center', marginBottom: 56 }}>
         <div style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 42, color: D.gold, fontWeight: 700, letterSpacing: '-0.5px' }}>
-          ✂ CoiffPro
+          ✂ Le Discret
         </div>
         <div style={{ fontSize: 13, color: D.muted, marginTop: 8, letterSpacing: '2px', textTransform: 'uppercase' }}>
           Coiffure & Barbier

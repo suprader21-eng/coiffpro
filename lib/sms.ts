@@ -1,5 +1,5 @@
 // ============================================================
-// CoiffPro — SMS via Android SMS Gateway (auto-hébergé)
+// Le Discret — SMS via Android SMS Gateway (auto-hébergé)
 // https://github.com/capcom6/android-sms-gateway
 //
 // CONFIGURATION (.env.local) :

@@ -157,7 +157,7 @@ export default function OnboardingPage() {
                 <path d="M10 15 L18 15" stroke={D.gold} strokeWidth="1.5" strokeLinecap="round" opacity=".6"/>
               </svg>
             </div>
-            <div style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 28, color: D.gold, marginBottom: 6, letterSpacing: '0.5px' }}>CoiffPro</div>
+            <div style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 28, color: D.gold, marginBottom: 6, letterSpacing: '0.5px' }}>Le Discret</div>
             <div style={{ fontSize: 11, color: D.muted, letterSpacing: '2.5px', textTransform: 'uppercase', marginBottom: 40 }}>Réservation & Gestion</div>
             <div style={{ fontSize: 16, color: D.cream, fontWeight: 500, marginBottom: 20, textAlign: 'center' }}>Vous êtes…</div>
 
@@ -236,7 +236,7 @@ export default function OnboardingPage() {
             ← Retour
           </button>
 
-          <div style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 26, color: D.gold, marginBottom: 4 }}>CoiffPro</div>
+          <div style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 26, color: D.gold, marginBottom: 4 }}>Le Discret</div>
           <div style={{ fontSize: 22, color: D.cream, fontWeight: 600 }}>Bienvenue 👋</div>
           <div style={{ fontSize: 13, color: D.muted, marginTop: 6, marginBottom: 36, lineHeight: 1.5 }}>
             Entrez votre prénom pour personnaliser votre expérience
@@ -319,7 +319,7 @@ export default function OnboardingPage() {
             <button onClick={() => goTo('cauth')} style={{ background: 'none', border: 'none', color: D.gold, fontWeight: 500, fontSize: 12, cursor: 'pointer', padding: '12px 0', fontFamily: 'inherit' }}>
               ← Retour
             </button>
-            <div style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 22, color: D.gold }}>CoiffPro</div>
+            <div style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 22, color: D.gold }}>Le Discret</div>
             <div style={{ fontSize: 20, color: D.cream, fontWeight: 600, marginTop: 2 }}>Votre profil</div>
             <div style={{ fontSize: 12, color: D.muted, marginTop: 4, lineHeight: 1.5 }}>Quelques questions pour personnaliser votre expérience</div>
           </div>
@@ -456,7 +456,7 @@ export default function OnboardingPage() {
             <button onClick={() => goTo('p3')} style={{ background: 'none', border: 'none', color: D.gold, fontWeight: 500, fontSize: 12, cursor: 'pointer', padding: '12px 0', fontFamily: 'inherit' }}>
               ← Retour
             </button>
-            <div style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 22, color: D.gold }}>CoiffPro</div>
+            <div style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 22, color: D.gold }}>Le Discret</div>
             <div style={{ fontSize: 20, color: D.cream, fontWeight: 600, marginTop: 2 }}>Créez votre salon</div>
             <div style={{ fontSize: 12, color: D.muted, marginTop: 4 }}>Rejoignez des centaines de coiffeurs</div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(201,164,92,0.1)', border: '1px solid rgba(201,164,92,0.25)', borderRadius: 20, padding: '5px 12px', fontSize: 11, color: D.gold, marginTop: 12 }}>

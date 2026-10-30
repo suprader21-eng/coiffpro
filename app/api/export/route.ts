@@ -271,7 +271,7 @@ ${reviews.length > 0 ? `
     </div>
   </div>
   <div class="footer-bottom">
-    <span>© ${new Date().getFullYear()} ${salonName} — Propulsé par CoiffPro</span>
+    <span>© ${new Date().getFullYear()} ${salonName} — Propulsé par Le Discret</span>
     <span>Mentions légales · Confidentialité</span>
   </div>
 </footer>

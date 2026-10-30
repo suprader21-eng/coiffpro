@@ -115,7 +115,7 @@ export default function FidelitePage() {
             <div style={{ fontSize:10, fontWeight:700, color:D.muted, letterSpacing:'1.5px', textTransform:'uppercase', marginBottom:10 }}>Comment ça marche</div>
             <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:20 }}>
               {[
-                { icon:'📅', title:'Réservez', desc:'Prenez RDV dans un salon CoiffPro' },
+                { icon:'📅', title:'Réservez', desc:'Prenez RDV dans un salon Le Discret' },
                 { icon:'⭐', title:'Gagnez des points', desc:'1€ dépensé = 1 point fidélité' },
                 { icon:'🎁', title:'Réclamez vos récompenses', desc:'Coupes gratuites, produits, soins...' },
               ].map(item => (

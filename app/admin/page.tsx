@@ -108,7 +108,7 @@ export default function AdminPage() {
 
       {/* NAV */}
       <nav style={{ height: 50, background: 'var(--bg)', borderBottom: '1px solid var(--b1)', display: 'flex', alignItems: 'center', padding: '0 18px', gap: 12, position: 'sticky', top: 0, zIndex: 60 }}>
-        <span style={{ fontFamily: 'Georgia,serif', fontSize: 18, fontWeight: 700 }}>✂ CoiffPro</span>
+        <span style={{ fontFamily: 'Georgia,serif', fontSize: 18, fontWeight: 700 }}>✂ Le Discret</span>
         <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 100, background: '#ede9fe', color: 'var(--purple)', fontWeight: 600, border: '1px solid #c4b5fd' }}>Admin</span>
         <div style={{ display: 'flex', gap: 4, marginLeft: 12 }}>
           {[
@@ -555,7 +555,7 @@ function AdminSupportPage({ salons, call, addToast }: {
                         {m.message}
                       </div>
                       <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 3, padding: '0 4px' }}>
-                        {m.from_admin ? 'CoiffPro (admin)' : sel.name} · {new Date(m.created_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        {m.from_admin ? 'Le Discret (admin)' : sel.name} · {new Date(m.created_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                         {!m.from_admin && !m.read_at && <span style={{ marginLeft: 6, color: 'var(--purple)', fontWeight: 600 }}>● non lu</span>}
                       </div>
                     </div>
@@ -712,12 +712,12 @@ function BroadcastPage({ salons, token, addToast }: {
 
           <div style={{ marginBottom: 12 }}>
             <label style={{ fontSize: 11, color: 'var(--t2)', textTransform: 'uppercase', letterSpacing: '.05em', display: 'block', marginBottom: 4 }}>Objet</label>
-            <input className="input" placeholder="ex: Nouvelle fonctionnalité CoiffPro 🎉" value={subject} onChange={e=>setSubject(e.target.value)} style={{ width: '100%' }} />
+            <input className="input" placeholder="ex: Nouvelle fonctionnalité Le Discret 🎉" value={subject} onChange={e=>setSubject(e.target.value)} style={{ width: '100%' }} />
           </div>
 
           <div style={{ marginBottom: 16 }}>
             <label style={{ fontSize: 11, color: 'var(--t2)', textTransform: 'uppercase', letterSpacing: '.05em', display: 'block', marginBottom: 4 }}>Message</label>
-            <textarea className="input" placeholder="Bonjour,&#10;&#10;Voici les dernières nouvelles de CoiffPro…" value={body} onChange={e=>setBody(e.target.value)} style={{ width: '100%', height: 200, resize: 'vertical', lineHeight: 1.6 }} />
+            <textarea className="input" placeholder="Bonjour,&#10;&#10;Voici les dernières nouvelles de Le Discret…" value={body} onChange={e=>setBody(e.target.value)} style={{ width: '100%', height: 200, resize: 'vertical', lineHeight: 1.6 }} />
             <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 4 }}>Tu peux utiliser {'{nom}'} pour personnaliser avec le nom du salon.</div>
           </div>
 

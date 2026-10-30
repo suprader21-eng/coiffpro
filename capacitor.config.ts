@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
   appId: 'fr.coiffpro.app',
-  appName: 'CoiffPro',
+  appName: 'Le Discret',
   // En production : pointe vers le site Vercel
   // En développement local : décommente la ligne serverUrl
   webDir: 'out',

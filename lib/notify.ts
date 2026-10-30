@@ -1,5 +1,5 @@
 // ============================================================
-// CoiffPro — Couche d'abstraction des notifications
+// Le Discret — Couche d'abstraction des notifications
 // Permet de changer de canal (SMS, Push, Email) sans toucher
 // au code métier. Actuellement : SMS via Android Gateway.
 // ============================================================
