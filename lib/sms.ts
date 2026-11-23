@@ -1,5 +1,5 @@
 // ============================================================
-// Le Discret — SMS via Android SMS Gateway (auto-hébergé)
+// La Conciergerie — SMS via Android SMS Gateway (auto-hébergé)
 // https://github.com/capcom6/android-sms-gateway
 //
 // CONFIGURATION (.env.local) :

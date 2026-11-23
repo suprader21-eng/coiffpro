@@ -33,9 +33,12 @@ export default function HomePage() {
       {/* Logo */}
       <div style={{ textAlign: 'center', marginBottom: 56 }}>
         <div style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 42, color: D.gold, fontWeight: 700, letterSpacing: '-0.5px' }}>
-          ✂ Le Discret
+          La Conciergerie
         </div>
-        <div style={{ fontSize: 13, color: D.muted, marginTop: 8, letterSpacing: '2px', textTransform: 'uppercase' }}>
+        <div style={{ fontSize: 11, color: D.gold, marginTop: 4, fontStyle: 'italic', letterSpacing: '1px', opacity: 0.75 }}>
+          pour homme
+        </div>
+        <div style={{ fontSize: 12, color: D.muted, marginTop: 8, letterSpacing: '2.5px', textTransform: 'uppercase' }}>
           Coiffure & Barbier
         </div>
       </div>

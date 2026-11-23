@@ -44,15 +44,15 @@ export async function POST(req: NextRequest) {
       try {
         const personalizedBody = body.replace(/\{nom\}/g, name)
         await transporter.sendMail({
-          from: `Le Discret <${ADMIN_EMAIL}>`,
+          from: `La Conciergerie <${ADMIN_EMAIL}>`,
           to: email,
           subject,
           text: personalizedBody,
           html: `<div style="font-family:sans-serif;max-width:600px;margin:auto;padding:24px">
-            <div style="font-size:20px;font-weight:700;margin-bottom:20px">✂ Le Discret</div>
+            <div style="font-size:20px;font-weight:700;margin-bottom:20px">✂ La Conciergerie</div>
             <div style="font-size:15px;line-height:1.7;white-space:pre-wrap">${personalizedBody.replace(/\n/g, '<br>')}</div>
             <div style="margin-top:32px;padding-top:16px;border-top:1px solid #eee;font-size:12px;color:#999">
-              Le Discret · coiffpro.fr<br>
+              La Conciergerie · coiffpro.fr<br>
               Pour vous désabonner, répondez à cet email avec "Désabonnement".
             </div>
           </div>`,

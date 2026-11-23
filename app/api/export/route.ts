@@ -271,7 +271,7 @@ ${reviews.length > 0 ? `
     </div>
   </div>
   <div class="footer-bottom">
-    <span>© ${new Date().getFullYear()} ${salonName} — Propulsé par Le Discret</span>
+    <span>© ${new Date().getFullYear()} ${salonName} — Propulsé par La Conciergerie</span>
     <span>Mentions légales · Confidentialité</span>
   </div>
 </footer>

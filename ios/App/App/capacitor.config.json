@@ -1,6 +1,6 @@
 {
 	"appId": "fr.coiffpro.app",
-	"appName": "Le Discret",
+	"appName": "La Conciergerie",
 	"webDir": "out",
 	"server": {
 		"url": "http://localhost:3000/onboarding",

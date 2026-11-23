@@ -1,6 +1,6 @@
 {
-  "name": "Le Discret",
-  "short_name": "Le Discret",
+  "name": "La Conciergerie",
+  "short_name": "La Conciergerie",
   "description": "Gestion de salon de coiffure — Agenda, clients, réservations",
   "start_url": "/",
   "display": "standalone",

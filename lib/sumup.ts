@@ -1,5 +1,5 @@
 // ============================================================
-// Le Discret — SumUp OAuth + Paiements
+// La Conciergerie — SumUp OAuth + Paiements
 // Chaque barber connecte SON propre compte SumUp
 // ============================================================
 
